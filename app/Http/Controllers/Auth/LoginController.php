@@ -57,5 +57,31 @@ class LoginController extends Controller
     public function handleProviderCallback(Facebook $fb)
     {
         $user = Socialite::driver('facebook')->stateless()->user();
+
+        // get long-lived user token
+        $userToken = $fb->getOAuth2Client();
+
+        try {
+            $longLivedUserToken = $userToken->getLongLivedAccessToken($user->token)->getValue();
+        } catch(Facebook $e){
+            echo $e->getMessage();
+        }
+
+        try {
+            $graphEdge = $fb->get('/me/accounts?fields=access_token', $longLivedUserToken)->getGraphEdge();
+        } catch (FacebookSDKException $e) {
+            echo $e->getMessage();
+        }
+
+        $pageToken = $graphEdge->asArray()['0']['access_token'];
+        $pageId = $graphEdge->asArray()['0']['id'];
+        $fb->setDefaultAccessToken($pageToken);
+
+        return redirect()->route('fb.getPagePostImpressions', 
+                    ['pageToken' => $pageToken, 
+                     'pageId' => $pageId,
+                     'since' => '2018-12-01',
+                     'until' => '2018-12-31'
+                ]);
     }
 }
