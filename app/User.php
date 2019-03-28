@@ -5,18 +5,23 @@ namespace App;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Passport\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use HasApiTokens, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * The attributes that are mass assignable (pwedeng ipasa nlng ay ung array sa pagssave
+     * imbis na mag 
+     * $user->user_type = 'admin';
+     * $user->save();
+     * 
      *
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password',
+        'email', 'password', 'first_name', 'last_name'
     ];
 
     /**
@@ -36,4 +41,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function facebookPages(){
+        return $this->hasMany('App\FacebookPage', 'user_id');
+    }
 }

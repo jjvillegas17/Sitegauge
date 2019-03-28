@@ -67,21 +67,22 @@ class LoginController extends Controller
             echo $e->getMessage();
         }
 
-        try {
+        try { // returns the access token for each page
             $graphEdge = $fb->get('/me/accounts?fields=access_token', $longLivedUserToken)->getGraphEdge();
         } catch (FacebookSDKException $e) {
             echo $e->getMessage();
         }
 
+        // TODO: have an assoc array where key = page_name & value = access_token
+        // so that add pages fxnality will be correct
+        
         $pageToken = $graphEdge->asArray()['0']['access_token'];
         $pageId = $graphEdge->asArray()['0']['id'];
         $fb->setDefaultAccessToken($pageToken);
 
-        return redirect()->route('fb.getPagePostImpressions', 
+        return redirect()->route('fb.addPage', 
                     ['pageToken' => $pageToken, 
                      'pageId' => $pageId,
-                     'since' => '2018-12-01',
-                     'until' => '2018-12-31'
                 ]);
     }
 }
