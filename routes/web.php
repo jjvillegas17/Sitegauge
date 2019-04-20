@@ -1,5 +1,4 @@
 <?php
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -20,5 +19,15 @@ Route::get('/', function () {
 // Route::get('/home', 'HomeController@index')->name('home');
 
 // Route::get('home/facebook', 'FacebookController@home')->name('fb.home');
-Route::get('login/facebook', 'Auth\LoginController@redirectToProvider')->name('fb.login');
-Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallback')->name('fb.callback');
+// Route::get('login/facebook', 'Auth\LoginController@redirectToProvider');
+// Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallbackFacebook');
+
+
+Route::group(['middleware' => 'auth:api'], function(){
+		
+});
+Route::get('login/google', 'Auth\LoginController@redirectToGoogle');
+Route::get('login/google/callback', 'Auth\LoginController@handleGoogleCallback');
+Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallbackFacebook');
+Route::get('login/twitter', 'Auth\LoginController@redirectToTwitter');
+Route::get('login/twitter/callback', 'Auth\LoginController@handleTwitterLoginCallback');

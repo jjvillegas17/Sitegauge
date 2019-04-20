@@ -46,20 +46,20 @@ class RegisterController extends BaseController
 
     public function login(){
         if(Auth::attempt(['email' => request('email'), 'password' => request('password')])){ 
-            $user = Auth::user(); 
+            $user = Auth::user();
+            $success['user_id'] = $user->id; 
             $success['token'] =  $user->createToken('MyApp')-> accessToken;
-            // return $this->sendResponse(Auth::user()->tokens, 'Login success');
-            // return redirect()->route('register.details'); 
             return $this->sendResponse($success, 'User login successful');
         } 
         else{ 
-            return $this->sendError('Wrong credentials', 'User login unsuccessful');
-            // return response()->json(['error'=>'Unauthorised'], 401); 
+            return $this->sendError('Incorrect username or password', 'User login unsuccessful');
+            // return response()-j>on(['error'=>'Unauthorised'], 401); 
         }
     }
 
     public function logout(){   
         if (Auth::check()) {
+            // get all the tokens of the user and revoke it all not only the last token
             Auth::user()->token()->revoke();
             return $this->sendResponse(['sucess' => 'logout_sucess'],'Logout success'); 
         }
@@ -73,4 +73,14 @@ class RegisterController extends BaseController
         return $this->sendResponse($user, 'Fetching of user successful');
     } 
 
+    public function getAllAccounts($userId){
+        $pages = User::find($userId)->facebookPages()->get()->toArray();
+        $twitters = User::find($userId)->twitterAccounts()->get()->toArray();
+        $accounts = ['pages' => $pages, 'twitters' => $twitters];
+        return response()->json($accounts);
+    }
+
+    public function getUser($userId){
+        return response()->json(User::find($userId));
+    }
 }

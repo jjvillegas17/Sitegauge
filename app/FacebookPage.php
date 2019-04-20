@@ -6,36 +6,35 @@ use Illuminate\Database\Eloquent\Model;
 
 class FacebookPage extends Model
 {
-    //
     public function user(){
     	return $this->belongsTo('App\User');
     }
 
     public function pageMetrics(){
-    	return $this->hasOne('App\PageMetric');
+    	return $this->hasMany('App\PageMetric');
     }
 
     public function likeSourceMetrics(){
-    	return $this->hasOne('App\LikeSourceMetric');
+    	return $this->hasMany('App\LikeSourceMetric');
     }
 
     public function contentActivityByTypeMetrics(){
-    	return $this->hasOne('App\ContentActivityByTypeMetric');
+    	return $this->hasMany('App\ContentActivityByTypeMetric');
     }
 
     public function fansCountryMetrics(){
-    	return $this->hasOne('App\FansCountryMetric');
+    	return $this->hasMany('App\FansCountryMetric');
     }
 
     public function fansCityMetrics(){
-        return $this->hasOne('App\FansCityMetric');
+        return $this->hasMany('App\FansCityMetric');
     }
 
     public function fansFemaleAgeMetrics(){
-        return $this->hasOne('App\FansFemaleAgeMetrics');
+        return $this->hasMany('App\FansFemaleAgeMetric');
     }
 
     public function fansMaleAgeMetrics(){
-        return $this->hasOne('App\FansMaleAgeMetrics');
+        return $this->hasMany('App\FansMaleAgeMetric');
     }
 }

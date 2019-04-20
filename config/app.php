@@ -176,6 +176,7 @@ return [
         App\Providers\RouteServiceProvider::class,
         // custom providers
         App\Providers\FacebookServiceProvider::class,
+        App\Providers\GoogleServiceProvider::class,
     ],
 
     /*

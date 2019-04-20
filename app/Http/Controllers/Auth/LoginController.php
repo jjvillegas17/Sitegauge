@@ -4,10 +4,16 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
 use Facebook\Facebook;
 use Socialite;
+use App\TwitterAccount;
+use Abraham\TwitterOAuth\TwitterOAuth;
+use App\Http\Controllers\API\BaseController as BaseController;
+use Google_Client;
+use Google_Service_Analytics;
 
-class LoginController extends Controller
+class LoginController extends BaseController
 {
     /*
     |--------------------------------------------------------------------------
@@ -39,14 +45,51 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
     }
 
-    /**
-     * Redirect the user to the GitHub authentication page.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function redirectToProvider(Facebook $fb)
-    {
-        return Socialite::driver('facebook')->scopes(["read_insights", "manage_pages"])->stateless()->redirect();
+    public function redirectToGoogle(){
+        $url = Socialite::driver('google')->scopes(['openid', 'profile', 'email', 'https://www.googleapis.com/auth/analytics.readonly'])->with(["access_type" => "offline"])->redirect()->getTargetUrl();
+        return response()->json($url . '&approval_prompt=force');
+    }
+
+    public function handleGoogleCallback(Request $request, Google_Client $client){
+        $client->authenticate($request->code);
+        $token = $client->getAccessToken()['access_token'];
+        $refreshToken = $client->getAccessToken()['refresh_token'];
+
+        $user = Socialite::driver('google')->userFromToken($token);
+
+        return redirect()->away("https://localhost:3000/addWebsite?token={$token}&refreshToken={$refreshToken}");
+        // $token = "ya29.GlvwBlUbe4tWuO29PIMLy1uiK4b64zzNDIwiMAhbMu-df7QNwyakIQnRc_mPElI6exT6hplBVdp2Lz8QvH-N75iZZVlzsuMc1OS0q9fIbbeq8b1vRWehPfjJU-dp";
+        // $client->setAccessToken($token);
+    }    
+
+    public function redirectToTwitter(Request $request){
+        $tempId = str_random(40);
+
+        $consumerKey = "zMdlnOUxnSOsqyU2O8FCFqK8z";
+        $consumerSecret = "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE";
+        $oauthToken = "1051570758-PkX7uIurnr8Jibr3Q2ycvXyRjcVp7i72URnF0wc";
+        $oauthTokenSecret = "6riQfa9rHko8yG21PlYsiMHU0ebH4cJFir5hkWcuN1RII";
+
+        $connection = new TwitterOAuth($consumerKey,$consumerSecret,$oauthToken,$oauthTokenSecret);
+        $connection->setTimeouts(60, 120);
+        $requestToken = $connection->oauth('oauth/request_token', array('oauth_callback' => 'https://sitegauge.io/login/twitter/callback'.'?user='.$tempId));
+
+        \Cache::put($tempId, $requestToken['oauth_token_secret'], 1);
+         $url = $connection->url('oauth/authorize', array('oauth_token' => $requestToken['oauth_token']));
+        return $url . "&userId={$request->userId}";
+    }
+
+    public function handleTwitterLoginCallback(Request $request) {
+        $consumerKey = "zMdlnOUxnSOsqyU2O8FCFqK8z";
+        $consumerSecret = "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE";
+        $oauthToken = "1051570758-PkX7uIurnr8Jibr3Q2ycvXyRjcVp7i72URnF0wc";
+        $oauthTokenSecret = "6riQfa9rHko8yG21PlYsiMHU0ebH4cJFir5hkWcuN1RII";
+
+        $connection = new TwitterOAuth($consumerKey, $consumerSecret, $request->oauth_token, $request->user);
+        $connection->setTimeouts(60, 120);
+        $access_token = $connection->oauth("oauth/access_token", ["oauth_verifier" => $request->oauth_verifier]);
+        $content = $this->setTwitterDetails($access_token['oauth_token'],$access_token['oauth_token_secret'], $request->userId);
+        return redirect()->away("https://localhost:3000/addSM?id={$content['id']}&name={$content['name']}&followers={$content['followers']}&following={$content['following']}&tweets={$content['tweets']}&username={$content['username']}&type=1");
     }
 
     /**
@@ -54,35 +97,56 @@ class LoginController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function handleProviderCallback(Facebook $fb)
+    public function handleProviderCallbackFacebook(Request $request, Facebook $fb)
     {
-        $user = Socialite::driver('facebook')->stateless()->user();
-
-        // get long-lived user token
-        $userToken = $fb->getOAuth2Client();
-
-        try {
-            $longLivedUserToken = $userToken->getLongLivedAccessToken($user->token)->getValue();
-        } catch(Facebook $e){
-            echo $e->getMessage();
+        try { // exchange short lived token to long lived
+            $token = $fb->post('/oauth/access_token', [
+                    'grant_type' => 'fb_exchange_token',           
+                    'client_id' => '774972786221082',
+                    'client_secret' => '77c42cb8c4872c52564edb61320245fa',
+                    'fb_exchange_token' => $request->token], $request->token);
+        } catch(FacebookSDKException $e){
+            return response()->json($e->getMessage());
         }
+        // return response()->json($token->getDecodedBody());
+        $token = $token->getDecodedBody();
+        $token = $token['access_token'];
 
         try { // returns the access token for each page
-            $graphEdge = $fb->get('/me/accounts?fields=access_token', $longLivedUserToken)->getGraphEdge();
+            $graphEdge = $fb->get('/me/accounts?fields=name,access_token', $token)->getGraphEdge();
         } catch (FacebookSDKException $e) {
-            echo $e->getMessage();
+            return response()->json($e->getMessage());
         }
 
-        // TODO: have an assoc array where key = page_name & value = access_token
-        // so that add pages fxnality will be correct
-        
-        $pageToken = $graphEdge->asArray()['0']['access_token'];
-        $pageId = $graphEdge->asArray()['0']['id'];
-        $fb->setDefaultAccessToken($pageToken);
+        $pages = [];
+        foreach ($graphEdge->asArray() as $key => $page) {
+            $pageObj = [];
+            $pageObj['name'] = $page['name'];
+            $pageObj['token'] = $page['access_token'];
+            $pageObj['id'] = $page['id'];
+            array_push($pages, $pageObj);
+        }
+        return response()->json($pages);
+     }
 
-        return redirect()->route('fb.addPage', 
-                    ['pageToken' => $pageToken, 
-                     'pageId' => $pageId,
+     public function setTwitterDetails($token, $tokenSecret, $userId){
+        $user = Socialite::driver('twitter')->userFromTokenAndSecret($token, $tokenSecret);
+        $twitter_account = [];
+        $twitter_account['id'] = $user->id;
+        $twitter_account['username'] = $user->nickname;
+        $twitter_account['name'] = $user->name;
+        $twitter_account['followers'] = $user->user['followers_count'];
+        $twitter_account['following'] = $user->user['friends_count'];
+        $twitter_account['tweets'] = $user->user['statuses_count'];
+        $twitter_account['user_id'] = $userId;    /* change this one to actual user id Auth::user()->id */
+        // $user = TwitterAccount::updateOrCreate(['nickname' => $user->nickname ], $twitter_account);
+        return $twitter_account;
+
+        return redirect()->route('updateAccount', 
+                    ['username' => $twitter_account['username'],
+                     'token' => $token, 
+                     'tokenSecret' => $tokenSecret,
                 ]);
     }
+        
 }

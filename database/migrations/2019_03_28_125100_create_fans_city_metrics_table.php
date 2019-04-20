@@ -26,8 +26,8 @@ class CreateFansCityMetricsTable extends Migration
             $table->string('city5');
             $table->integer('value5');
             $table->date('date_retrieved');
-            $table->unsignedBigInteger('facebook_pages_id');
-            $table->foreign('facebook_pages_id')->references('id')->on('facebook_pages')->onDelete('cascade');
+            $table->unsignedBigInteger('facebook_page_id');
+            $table->foreign('facebook_page_id')->references('id')->on('facebook_pages')->onDelete('cascade');
             $table->timestamps();
         });
     }

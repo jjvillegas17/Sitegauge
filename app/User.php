@@ -45,4 +45,8 @@ class User extends Authenticatable
     public function facebookPages(){
         return $this->hasMany('App\FacebookPage', 'user_id');
     }
+
+    public function twitterAccounts(){
+        return $this->hasMany('App\TwitterAccount', 'user_id');
+    }
 }

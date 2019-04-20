@@ -15,6 +15,9 @@ class CreatePostDetailsMetricsTable extends Migration
     {
         Schema::create('post_details_metrics', function (Blueprint $table) {
             $table->string('id')->primary();
+            $table->string('type');
+            $table->string('message');
+            $table->string('targeting');
             $table->string('link');
             $table->integer('comments');
             $table->integer('impressions');
@@ -26,9 +29,8 @@ class CreatePostDetailsMetricsTable extends Migration
             $table->integer('angry');
             $table->integer('engaged_users');
             $table->date('created_time');
-            $table->unsignedBigInteger('facebook_pages_id');
-            $table->foreign('facebook_pages_id')->references('id')->on('facebook_pages')->onDelete('cascade');
-            $table->timestamps();
+            $table->unsignedBigInteger('facebook_page_id');
+            $table->foreign('facebook_page_id')->references('id')->on('facebook_pages')->onDelete('cascade');
         });
     }
 

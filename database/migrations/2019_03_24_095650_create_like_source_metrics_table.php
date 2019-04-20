@@ -23,8 +23,8 @@ class CreateLikeSourceMetricsTable extends Migration
             $table->integer('your_page');
             $table->integer('other');
             $table->date('date_retrieved');
-            $table->unsignedBigInteger('facebook_pages_id');
-            $table->foreign('facebook_pages_id')->references('id')->on('facebook_pages')->onDelete('cascade');
+            $table->unsignedBigInteger('facebook_page_id');
+            $table->foreign('facebook_page_id')->references('id')->on('facebook_pages')->onDelete('cascade');
             $table->timestamps();
         });
     }

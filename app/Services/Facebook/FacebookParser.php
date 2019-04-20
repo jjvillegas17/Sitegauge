@@ -1,6 +1,7 @@
 <?php 
 
 namespace App\Services\Facebook;
+use App\PostDetailsMetric;
 
 class FacebookParser
 {
@@ -22,7 +23,7 @@ class FacebookParser
         $m['new_likes'] = $metrics[7][0]['values'][$i]['value'];
         $m['content_activity'] = $metrics[8][0]['values'][$i]['value'];
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
-        $m['facebook_pages_id'] = $pageId;
+        $m['facebook_page_id'] = $pageId;
         return $m;
     }
 
@@ -52,7 +53,7 @@ class FacebookParser
             }
         }
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
-        $m['facebook_pages_id'] = $pageId;
+        $m['facebook_page_id'] = $pageId;
         return $m;
     }
 
@@ -88,7 +89,7 @@ class FacebookParser
         }
 
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
-        $m['facebook_pages_id'] = $pageId;
+        $m['facebook_page_id'] = $pageId;
         return $m;
     }
 
@@ -112,7 +113,7 @@ class FacebookParser
         }
 
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[$index][0]['values'][$i]['end_time']['date']));
-        $m['facebook_pages_id'] = $pageId;
+        $m['facebook_page_id'] = $pageId;
 
         return $m;
     }
@@ -141,61 +142,9 @@ class FacebookParser
         }
 
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[13][0]['values'][$i]['end_time']['date']));
-        $m['facebook_pages_id'] = $pageId;
+        $m['facebook_page_id'] = $pageId;
 
         return $m;
-    }
-
-    public static function parseUpdate($metricArr, $metricName, $pageId, $appendMetric = null){
-        $parsedMetric = [];
-        $i = 0;
-        foreach ($metricArr as $key => $metric) {
-            // if(empty($like)){
-            //     continue;
-            // }
-            $metricValues = $metric[0]["values"];
-            foreach ($metricValues as $key => $metricValue) {
-                if(!is_null($appendMetric)){
-                    $appendMetric[$i][$metricName] = $metricValue["value"];
-                    $i++;                    
-                }
-                else{
-                    $likeObj = [];
-                    $likeObj[$metricName] = $metricValue["value"];
-                    $likeObj['date_retrieved'] = date('Y-m-d', strtotime($metricValue["end_time"]["date"]));
-                    $likeObj['facebook_pages_id'] = $pageId;
-                    array_push($parsedMetric, $likeObj);                    
-                }
-            }
-        }
-        if(is_null($appendMetric)){
-            return $parsedMetric;
-        }
-        return $appendMetric;
-    }
-
-    public static function parseGenMetric($metricObj, $metricName, $pageId, $arrMetric = null, $index = null){
-        if(!is_null($arrMetric) && !is_null($index)){
-            dd($index, $metricObj);
-            $arrMetric[$index][$metricName] = $metricObj['values'][$index]['value'];
-        }
-        else{
-            $parsedLikes = [];
-            foreach ($likes as $key => $like) {
-                // if(empty($like)){
-                //  continue;
-                // }
-                $likeValues = $like[0]["values"];
-                foreach ($likeValues as $key => $likeValue) {
-                    $likeObj = [];
-                    $likeObj[$metricName] = $likeValue["value"];
-                    $likeObj['date_retrieved'] = date('Y-m-d', strtotime($likeValue["end_time"]["date"]));
-                    $likeObj['facebook_pages_id'] = $pageId;
-                    array_push($parsedLikes, $likeObj);
-                }
-            }
-            return $parsedLikes;
-        }
     }
 
 	public static function parsePostsDetails($postsDetails, $pageId){
@@ -204,6 +153,12 @@ class FacebookParser
             $post = [];
             $post['id'] = $postDetail["id"];
 			$post['created_time'] = $postDetail["created_time"]->format('Y-m-d');
+            $post['message'] = substr($postDetail["message"], 0, 40);
+            $post['type'] = $postDetail["type"];
+            $post['targeting'] = "public";
+            if(array_key_exists('targeting', $postDetail)){
+                $post['targeting'] = $postDetail['targeting'];
+            }
             $post['comments'] = count($postDetail["comments"]);
             $post['link'] = $postDetail["link"];
             $post['impressions'] = $postDetail["insights"][0]["values"][0]["value"];
@@ -214,9 +169,39 @@ class FacebookParser
             $post['haha'] = $postDetail["haha"];
             $post['sad'] = $postDetail["sad"];
             $post['angry'] = $postDetail["angry"];
-            $post['facebook_pages_id'] = $pageId;
+            $post['facebook_page_id'] = $pageId;
             array_push($parsedPostsDetails, $post);
 		}
+
+        return $parsedPostsDetails;
+    }
+
+    public static function parsePostsDetails1($postsDetails, $pageId){
+        $parsedPostsDetails = [];
+        foreach ($postsDetails as $key => $postDetail) {
+            $post = [];
+            $post['id'] = $postDetail["id"];
+            $post['created_time'] = $postDetail["created_time"]->format('Y-m-d');
+            $post['message'] = substr($postDetail["message"], 0, 40);
+            $post['type'] = $postDetail["type"];
+            $post['targeting'] = "public";
+            if(array_key_exists('targeting', $postDetail)){
+                $post['targeting'] = $postDetail['targeting'];
+            }
+            $post['comments'] = count($postDetail["comments"]);
+            $post['link'] = $postDetail["link"];
+            $post['impressions'] = $postDetail["insights"][0]["values"][0]["value"];
+            $post['engaged_users'] = $postDetail["insights"][1]["values"][0]["value"];
+            $post['likes'] = $postDetail["like"];
+            $post['love'] = $postDetail["love"];
+            $post['wow'] = $postDetail["wow"];
+            $post['haha'] = $postDetail["haha"];
+            $post['sad'] = $postDetail["sad"];
+            $post['angry'] = $postDetail["angry"];
+            $post['facebook_page_id'] = $pageId;
+            array_push($parsedPostsDetails, $post);
+        }
+
         return $parsedPostsDetails;
     }
 

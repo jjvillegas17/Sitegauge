@@ -50,4 +50,17 @@ return [
         'redirect' => 'https://sitegauge.io/login/facebook/callback',
     ],
 
-];
+    'twitter' => [
+        'client_id' => 'zMdlnOUxnSOsqyU2O8FCFqK8z',
+        'client_secret' => 'Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE',
+        'redirect' => 'https://sitegauge.io/login/twitter/callback',
+    ],
+
+    'google' => [
+        'client_id' => '462944543624-1us3o2ijvbl2d7q2o4ln0jaf490ieic6.apps.googleusercontent.com',
+        'client_secret' => 'TSjdpfT6I_AuX_GoWkY2g5BG',
+        'redirect' => 'https://sitegauge.io/login/google/callback',
+    ],
+
+
+];  

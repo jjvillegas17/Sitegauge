@@ -20,6 +20,7 @@ use App\FansCityMetric;
 use App\PostDetailsMetric;
 use App\FansFemaleAgeMetric;
 use App\FansMaleAgeMetric;
+use Exception;
 
 use App\Http\Controllers\API\BaseController as BaseController;
 
@@ -32,22 +33,31 @@ class FacebookController extends BaseController
 
     public function __construct(Facebook $fb, Request $request) {
         $this->fb = $fb;
-        $this->fb->setDefaultAccessToken($request->pageToken);
+        $token = explode('=', $request->pageToken);
+        $this->fb->setDefaultAccessToken($token[0]);
     }
 
     public function addPage(Request $request, Facebook $fb){
-        $facebookPage = new FacebookPage;
-        $facebookPage->id = $request->pageId;
-        $facebookPage->access_token = $request->pageToken;
-        $facebookPage->page_name = 'ACSS';
-        $facebookPage->user_id = Auth::user()->id;
-        $facebookPage->save();
-        return response()->json($facebookPage);
+        // return response()->json($request);
+        try{
+            $facebookPage = new FacebookPage;
+            $facebookPage->id = $request->pageId;
+            $facebookPage->access_token = $request->pageToken;
+            $facebookPage->page_name = $request->pageName;
+            $facebookPage->user_id = $request->userId;
+            $facebookPage->save();
+            return $this->sendResponse($facebookPage, 'Page succesfully added'); 
+        }catch (\Illuminate\Database\QueryException $ex){
+            return response()->json($ex->getMessage());
+        }catch (Exception $e) {
+            return response()->json($e->getMessage());
+            // return $this->sendError(['error' => get_class($e)],'Getting metrics failed'); 
+        } 
     }
 
     public function getDashboardMetrics(Request $request, $pageId, Facebook $fb){
         // check if there is existing analytics in the page_metrics table
-        $lastDate = PageMetric::where('facebook_pages_id', '=', $pageId)->max('date_retrieved');
+        $lastDate = PageMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
         
         // set since params to date 2yrs ago
         $time = strtotime("-2 years", time());
@@ -56,11 +66,13 @@ class FacebookController extends BaseController
 
         // if there is existing analytics in the table
         if(!is_null($lastDate)){
-            $since = $lastDate;
-            // set since params to the 2 days from last date retrieved from the db 
-            $now = new \DateTime('now');
-            $lastDate = new \DateTime($lastDate);
-            $days = $lastDate->diff($now)->days - 2;
+            // add 2 days from the last date retrieved from the db
+            if($since == DateHelper::addDays($lastDate, 2)){
+                $since = DateHelper::addDays($lastDate, 2); 
+            }
+            else{
+                $since = $lastDate;
+            }
         }
 
         // list the metrics to be fetched
@@ -118,6 +130,8 @@ class FacebookController extends BaseController
         $ffemaleAge = []; // fans female age arr
         $fmaleAge = []; // fans male age arr
 
+        $days = count($metrics[0][0]['values']);
+
         for($i = 0; $i<$days; $i++ ){
             $metricObj = FacebookParser::parseGeneral($metrics, $i, $pageId);
             $contentObj = FacebookParser::parseContentActivityType($metrics, $i, $pageId);
@@ -145,14 +159,39 @@ class FacebookController extends BaseController
         FansFemaleAgeMetric::insert($ffemaleAge);
         FansMaleAgeMetric::insert($fmaleAge);
 
+        $resp = ['page_metrics' => $m, 'content_activity_by_type_metrics' =>$c, 'like_source_metrics' => $l, 'fans_country_metrics' => $fcountry, 'fans_city_metrics' => $fcity, 'fans_female_age_metrics' => $ffemaleAge, 'fans_male_age_metrics' => $fmaleAge];
+         
+        if(!is_null($lastDate))
+            return $this->sendResponse($resp, 'Metrics succesfully updated');
 
-        return $this->sendResponse(['page_metrics' => $m, 'content_activity_by_type_metrics' =>$c, 'like_source_metrics' => $l], 'Metrics succesfully saved');
+        return $this->sendResponse($resp, 'Metrics succesfully saved');
     }
 
     // public function getAllMetrics(){
     //     $this->getDashboardMetrics();
     //     $this->getPagePostsDetails();
     // }
+    
+
+    // /fb/{userId}/pages
+    public function getPagesOfUser($userId){
+        $pages = User::find($userId)->facebookPages;
+        return response()->json($pages);
+    }
+
+    // params: start, end, pageId
+    public function fetchMetrics(Request $request, $pageId){
+        $metrics = [];
+        $metrics['page_metrics']= FacebookPage::find($pageId)->pageMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['like_source_metrics'] = FacebookPage::find($pageId)->likeSourceMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['content_activity_by_type_metrics'] = FacebookPage::find($pageId)->contentActivityByTypeMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['fans_country_metrics'] = FacebookPage::find($pageId)->fansCountryMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['fans_city_metrics'] = FacebookPage::find($pageId)->fansCityMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['fans_female_age_metrics'] = FacebookPage::find($pageId)->fansFemaleAgeMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['fans_male_age_metrics'] = FacebookPage::find($pageId)->fansMaleAgeMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+
+        return $this->sendResponse($metrics, 'Metrics succesfully fetched');
+    }
 
     public function getPageLikes(Request $request, $pageId, Facebook $fb){
         // $since = $request->since;
@@ -196,7 +235,7 @@ class FacebookController extends BaseController
         $postsDetails = [];
         foreach($postsId as $postId){
             try{
-                $graphEdge = $fb->get("/{$postId}?fields=reactions.type(LIKE).summary(1).as(like), reactions.type(LOVE).summary(1).as(love), reactions.type(WOW).summary(1).as(wow), reactions.type(HAHA).summary(1).as(haha), reactions.type(SAD).summary(1).as(sad), reactions.type(ANGRY).summary(1).as(angry), insights.metric(post_impressions,post_engaged_users),created_time,message,type,targeting,comments.summary(1),link")->getGraphNode();
+                $graphEdge = $fb->get("/{$postId}?fields=reactions.type(LIKE).summary(1).as(like), reactions.type(LOVE).summary(1).as(love), reactions.type(WOW).summary(1).as(wow), reactions.type(HAHA).summary(1).as(haha), reactions.type(SAD).summary(1).as(sad), reactions.type(ANGRY).summary(1).as(angry), created_time,message,type,targeting,comments.summary(1),link,insights.metric(post_impressions,post_engaged_users)")->getGraphNode();
 
                 $arr = $graphEdge->asArray();
 
@@ -212,10 +251,17 @@ class FacebookController extends BaseController
         $postsDetails = FacebookParser::parsePostsDetails($postsDetails, $pageId);
 
         foreach ($postsDetails as $key => $postDetail) {
-            PostDetailsMetric::firstOrCreate($postDetail);
+            PostDetailsMetric::updateOrCreate($postDetail);
         }
 
         return response()->json(['post_detail_metrics' => $postsDetails]);
     }
+
+    public function getMinDate($pageId){
+        $min = FacebookPage::find($pageId)->pageMetrics->min('date_retrieved');
+        return $this->sendResponse($min, 'Minimum date succesfully fetched');
+    }
+
+    
 
 }
