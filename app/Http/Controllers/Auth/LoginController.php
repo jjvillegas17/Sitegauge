@@ -56,10 +56,8 @@ class LoginController extends BaseController
         $refreshToken = $client->getAccessToken()['refresh_token'];
 
         $user = Socialite::driver('google')->userFromToken($token);
-
-        return redirect()->away("https://localhost:3000/addWebsite?token={$token}&refreshToken={$refreshToken}");
-        // $token = "ya29.GlvwBlUbe4tWuO29PIMLy1uiK4b64zzNDIwiMAhbMu-df7QNwyakIQnRc_mPElI6exT6hplBVdp2Lz8QvH-N75iZZVlzsuMc1OS0q9fIbbeq8b1vRWehPfjJU-dp";
-        // $client->setAccessToken($token);
+        
+        return redirect()->away("https://localhost:3000/addWebsite?token={$token}&refreshToken={$refreshToken}&email={$user->email}");
     }    
 
     public function redirectToTwitter(Request $request){
@@ -67,8 +65,8 @@ class LoginController extends BaseController
 
         $consumerKey = "zMdlnOUxnSOsqyU2O8FCFqK8z";
         $consumerSecret = "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE";
-        $oauthToken = "1051570758-PkX7uIurnr8Jibr3Q2ycvXyRjcVp7i72URnF0wc";
-        $oauthTokenSecret = "6riQfa9rHko8yG21PlYsiMHU0ebH4cJFir5hkWcuN1RII";
+        $oauthToken = "1051570758-rgijW7EyFycBc36cBSdLFM5025jo8j3d0NIKEQn";
+        $oauthTokenSecret = "4gtIZ9ntLvW6uSJwBHcPfW6jHql55wg2nEY3XbsH4s8p0";
 
         $connection = new TwitterOAuth($consumerKey,$consumerSecret,$oauthToken,$oauthTokenSecret);
         $connection->setTimeouts(60, 120);
@@ -82,8 +80,8 @@ class LoginController extends BaseController
     public function handleTwitterLoginCallback(Request $request) {
         $consumerKey = "zMdlnOUxnSOsqyU2O8FCFqK8z";
         $consumerSecret = "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE";
-        $oauthToken = "1051570758-PkX7uIurnr8Jibr3Q2ycvXyRjcVp7i72URnF0wc";
-        $oauthTokenSecret = "6riQfa9rHko8yG21PlYsiMHU0ebH4cJFir5hkWcuN1RII";
+        $oauthToken = "1051570758-rgijW7EyFycBc36cBSdLFM5025jo8j3d0NIKEQn";
+        $oauthTokenSecret = "4gtIZ9ntLvW6uSJwBHcPfW6jHql55wg2nEY3XbsH4s8p0";
 
         $connection = new TwitterOAuth($consumerKey, $consumerSecret, $request->oauth_token, $request->user);
         $connection->setTimeouts(60, 120);

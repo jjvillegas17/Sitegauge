@@ -49,4 +49,8 @@ class User extends Authenticatable
     public function twitterAccounts(){
         return $this->hasMany('App\TwitterAccount', 'user_id');
     }
+
+    public function googleAnalyticsAccounts(){
+        return $this->hasMany('App\GoogleAnalytics', 'user_id');   
+    }
 }

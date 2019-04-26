@@ -76,7 +76,8 @@ class RegisterController extends BaseController
     public function getAllAccounts($userId){
         $pages = User::find($userId)->facebookPages()->get()->toArray();
         $twitters = User::find($userId)->twitterAccounts()->get()->toArray();
-        $accounts = ['pages' => $pages, 'twitters' => $twitters];
+        $googles = User::find($userId)->googleAnalyticsAccounts()->get()->toArray();
+        $accounts = ['pages' => $pages, 'twitters' => $twitters, 'googles' => $googles];
         return response()->json($accounts);
     }
 

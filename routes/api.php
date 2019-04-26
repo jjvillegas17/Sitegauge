@@ -47,8 +47,13 @@ Route::post("/twitter/{twitterId}/upload", 'TwitterController@uploadCSV')->name(
 Route::get("/twitter/{userId}/update-account", 'TwitterController@updateAccount')->name('updateAccount');
 Route::get("/twitter/{twitterId}/tweet-metrics", 'TwitterController@getTweetMetrics')->name('getTweetMetrics');
 
+Route::post("/google/add-account", 'GoogleController@addAccount');
 Route::get("/google/get-accounts", 'GoogleController@getAccounts');
-
+Route::get("/google/{userId}/accounts", 'GoogleController@getAccountsOfUser');
+Route::get("/google/{profileId}/get-audience-metrics", 'GoogleController@getAudienceMetrics');
+Route::get("/google/{profileId}/get-acquisition-metrics", 'GoogleController@getAcquisitionMetrics');
+Route::get("/google/{profileId}/get-behavior-metrics", 'GoogleController@getBehaviorMetrics');
+Route::get("/google/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
 // Route::get('login/{provider}', 'Auth\LoginController@redirectToProvider');
 // Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallbackFacebook');
 // Route::get('login/twitter/callback', 'Auth\LoginController@handleProviderCallbackTwitter');
