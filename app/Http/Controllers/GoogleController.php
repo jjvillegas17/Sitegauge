@@ -137,8 +137,8 @@ class GoogleController extends BaseController{
         $metrics = [];
         $metrics['acquisition']= GoogleAnalytics::find($profileId)->acquisitionMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
         $metrics['audience']= GoogleAnalytics::find($profileId)->audienceMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
-        $metrics['behavior']= GoogleAnalytics::find($profileId)->behaviorMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
-
+        $metrics['behavior']= GoogleAnalytics::find($profileId)->behaviorMetrics()->select('page_path', \DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->groupBy('page_path')->orderByRaw('SUM(pageviews) DESC')->limit(10)->get();
+        $metrics['pageviews_total'] = GoogleAnalytics::find($profileId)->behaviorMetrics()->select(\DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->get()[0];
         return response()->json($metrics);
     }
 

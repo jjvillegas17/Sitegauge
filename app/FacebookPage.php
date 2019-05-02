@@ -14,6 +14,10 @@ class FacebookPage extends Model
     	return $this->hasMany('App\PageMetric');
     }
 
+    public function postDetailsMetrics(){
+        return $this->hasMany('App\PostDetailsMetric', 'facebook_page_id');
+    }
+
     public function likeSourceMetrics(){
     	return $this->hasMany('App\LikeSourceMetric');
     }
@@ -36,5 +40,9 @@ class FacebookPage extends Model
 
     public function fansMaleAgeMetrics(){
         return $this->hasMany('App\FansMaleAgeMetric');
+    }
+
+    public function fansOnlineMetrics(){
+        return $this->hasMany('App\FansOnlineMetric');
     }
 }

@@ -36,6 +36,7 @@ Route::get('/fb/{userId}/pages', 'FacebookController@getPagesOfUser')->name('fb.
 // ?pageToken={$token}
 Route::post('/fb/add-page', 'FacebookController@addPage')->name('fb.addPage');
 Route::get('/fb/{pageId}/dashboard-metrics', 'FacebookController@getDashboardMetrics')->name('fb.getDashboardMetrics');
+Route::get('/fb/{pageId}/dashboard-metrics-fans', 'FacebookController@getDashboardMetricsFans');
 Route::get('/fb/{pageId}/fetch-metrics', 'FacebookController@fetchMetrics')->name('fb.fetchMetrics');
 Route::get('/fb/{pageId}/posts-details', 'FacebookController@getPagePostsDetails')->name('fb.getPagePostsDetails');
 Route::get('/fb/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
@@ -54,6 +55,12 @@ Route::get("/google/{profileId}/get-audience-metrics", 'GoogleController@getAudi
 Route::get("/google/{profileId}/get-acquisition-metrics", 'GoogleController@getAcquisitionMetrics');
 Route::get("/google/{profileId}/get-behavior-metrics", 'GoogleController@getBehaviorMetrics');
 Route::get("/google/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
+
+Route::get("/insights/fb/{pageId}/most-engaged-post", 'InsightController@getMostEngagedPost');
+Route::get("/insights/fb/{pageId}/top-like-source", 'InsightController@getTopLikeSource');
+Route::get("/insights/fb/{pageId}/like-peak-dates", 'InsightController@getLikePeakDates');
+Route::get("/insights/fb/{pageId}/best-time-to-post", 'InsightController@getBestTimeToPost');
+
 // Route::get('login/{provider}', 'Auth\LoginController@redirectToProvider');
 // Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallbackFacebook');
 // Route::get('login/twitter/callback', 'Auth\LoginController@handleProviderCallbackTwitter');

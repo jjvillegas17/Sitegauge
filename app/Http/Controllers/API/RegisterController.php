@@ -19,21 +19,23 @@ class RegisterController extends BaseController
         // 'isAdmin required'
         // '
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|unique:users,email,' . $request->email,
+            'password' => 'required|confirmed',
+            'firstName' => 'required',
+            'lastName' => 'required',
         ]);
 
         if($validator->fails()){
-            return $this->sendError('Validation Error.', $validator->errors());       
+            $errors = [];
+            array_push($errors, $validator->errors());
+            return $this->sendError($errors, 'User signup unsuccessful');     
         }
 
         $input = $request->all();
-        // return $this->sendResponse($input, 'user details');
         $input['password'] = bcrypt($input['password']);
-        
         $user = new User;
-        $user->first_name = $input['first_name'];
-        $user->last_name = $input['last_name'];
+        $user->first_name = $input['firstName'];
+        $user->last_name = $input['lastName'];
         $user->email = $input['email'];
         $user->password = $input['password'];
         

@@ -1,11 +1,8 @@
 <?php 
-
 namespace App\Services\Facebook;
 use App\PostDetailsMetric;
-
 class FacebookParser
 {
-
     public static function parseGeneral($metrics, $i, $pageId){
         $m = [];
         $m['likes'] = $metrics[0][0]['values'][$i]['value'];
@@ -39,8 +36,7 @@ class FacebookParser
         $m['question'] = 0;
         $m['user_post'] = 0;
         $m['other'] = 0;
-
-        $types = $metrics[9][0]['values'][$i]['value'];
+        $types = $metrics[4][0]['values'][$i]['value'];
         foreach ($types as $key => $value) {
             if($key == 'page post'){
                 $m['page_post'] = $value;
@@ -52,7 +48,7 @@ class FacebookParser
                 $m[$key] = $value;
             }
         }
-        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
+        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[4][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = $pageId;
         return $m;
     }
@@ -67,8 +63,7 @@ class FacebookParser
         $m['search'] = 0;
         $m['your_page'] = 0;
         $m['other'] = 0;
-        $sources = $metrics[10][0]['values'][$i]['value'];
-
+        $sources = $metrics[5][0]['values'][$i]['value'];
         foreach ($sources as $key => $value) {
             $key = strtolower($key);
             if($key == 'news feed'){
@@ -87,8 +82,7 @@ class FacebookParser
                 $m[$key] = $value;
             }
         }
-
-        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
+        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[5][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = $pageId;
         return $m;
     }
@@ -96,13 +90,10 @@ class FacebookParser
     public static function parseFansPlace($metrics, $i, $pageId, $place){
         $m = [];
         
-        $index = $place == 'country' ? 11 : 12;
-
+        $index = $place == 'country' ? 1 : 2;
         $countries = $metrics[$index][0]['values'][$i]['value'];
         arsort($countries);
-
         $j = 1;
-
         foreach ($countries as $key => $value) {       
             if($j > 5){
                 break;
@@ -111,19 +102,15 @@ class FacebookParser
             $m['value' . $j] = $value;
             $j++;
         }
-
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[$index][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = $pageId;
-
         return $m;
     }
 
     public static function parseFansGender($metrics, $i, $pageId, $gender){
         $m = [];
-
         $gender = strtolower($gender);
-
-        $ageGrps = $metrics[13][0]['values'][$i]['value'];
+        $ageGrps = $metrics[3][0]['values'][$i]['value'];
         
         $m[$gender . '_13_17'] = 0;
         $m[$gender . '_18_24'] = 0;
@@ -132,7 +119,6 @@ class FacebookParser
         $m[$gender . '_45_54'] = 0;
         $m[$gender . '_55_64'] = 0;
         $m[$gender . '_65_'] = 0;
-
         foreach ($ageGrps as $key => $ageGrp) {
             $key = strtolower($key);
             $key = preg_replace("/[^a-zA-Z0-9\s]/", "_", $key);
@@ -140,49 +126,43 @@ class FacebookParser
                 continue;       
             $m[$key] = $ageGrp;
         }
-
-        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[13][0]['values'][$i]['end_time']['date']));
+        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[3][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = $pageId;
-
         return $m;
     }
 
-	public static function parsePostsDetails($postsDetails, $pageId){
-		$parsedPostsDetails = [];
-		foreach ($postsDetails as $key => $postDetail) {
-            $post = [];
-            $post['id'] = $postDetail["id"];
-			$post['created_time'] = $postDetail["created_time"]->format('Y-m-d');
-            $post['message'] = substr($postDetail["message"], 0, 40);
-            $post['type'] = $postDetail["type"];
-            $post['targeting'] = "public";
-            if(array_key_exists('targeting', $postDetail)){
-                $post['targeting'] = $postDetail['targeting'];
+    public static function parseFansOnline($metrics, $i, $pageId,$fonline){
+        $m = [];
+        $hours = $metrics[0][0]['values'][$i]['value'];
+        foreach ($hours as $key => $hour) {
+            $m["hour"] = $key + 15;
+            $m["fans"] = $hour;
+            if($key + 15 <= 23){
+                $m["hour"] = $key + 15;
+                $m["date_retrieved"] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
             }
-            $post['comments'] = count($postDetail["comments"]);
-            $post['link'] = $postDetail["link"];
-            $post['impressions'] = $postDetail["insights"][0]["values"][0]["value"];
-            $post['engaged_users'] = $postDetail["insights"][1]["values"][0]["value"];
-            $post['likes'] = $postDetail["like"];
-            $post['love'] = $postDetail["love"];
-            $post['wow'] = $postDetail["wow"];
-            $post['haha'] = $postDetail["haha"];
-            $post['sad'] = $postDetail["sad"];
-            $post['angry'] = $postDetail["angry"];
-            $post['facebook_page_id'] = $pageId;
-            array_push($parsedPostsDetails, $post);
-		}
-
-        return $parsedPostsDetails;
+            else{
+                $m["hour"] = $key + 15 - 24;
+                $m["date_retrieved"] = date('Y-m-d', strtotime("+1 day", strtotime($metrics[0][0]['values'][$i]['end_time']['date'])));
+            }
+            $m["facebook_page_id"] = $pageId;
+            array_push($fonline,$m);
+        }
+        return $fonline;
     }
 
-    public static function parsePostsDetails1($postsDetails, $pageId){
+    public static function parsePostsDetails($postsDetails, $pageId){
         $parsedPostsDetails = [];
         foreach ($postsDetails as $key => $postDetail) {
             $post = [];
             $post['id'] = $postDetail["id"];
             $post['created_time'] = $postDetail["created_time"]->format('Y-m-d');
-            $post['message'] = substr($postDetail["message"], 0, 40);
+            if(array_key_exists("message", $postDetail)){
+                $post['message'] = substr($postDetail["message"], 0, 40);    
+            }
+            else{
+                $post['message'] = "No message included";
+            }
             $post['type'] = $postDetail["type"];
             $post['targeting'] = "public";
             if(array_key_exists('targeting', $postDetail)){
@@ -201,7 +181,6 @@ class FacebookParser
             $post['facebook_page_id'] = $pageId;
             array_push($parsedPostsDetails, $post);
         }
-
         return $parsedPostsDetails;
     }
 
@@ -212,7 +191,6 @@ class FacebookParser
         $arr["haha"] = $graphEdge->getField("haha")->getMetaData()["summary"]["total_count"];
         $arr["sad"] = $graphEdge->getField("sad")->getMetaData()["summary"]["total_count"];
         $arr["angry"] = $graphEdge->getField("angry")->getMetaData()["summary"]["total_count"];
-
         return $arr;
     }
 }
