@@ -49,7 +49,84 @@ class FacebookController extends BaseController
         } 
     }
 
+    // b, c 
+    public function uploadCSV(Request $request, $pageId){
+        $types = ['application/csv','application/excel','application/vnd.ms-excel','application/vnd.msexcel','text/csv','text/anytext','text/comma-separated-values'];
+
+        if ($request->hasFile('file')) {
+            $rFile = $request->file('file'); 
+            if($rFile && in_array($rFile->getClientMimeType(), $types)) {
+                $file = $request->file("file");
+                $metricsArr = $this->csvToArray($file, $pageId);
+
+                foreach ($metricsArr as $key => $metric) {
+                    $m = PageMetric::where([
+                        ['date_retrieved', $metric['date_retrieved']],
+                        ['facebook_page_id', $metric['facebook_page_id']]
+                        ])->first();
+                    if(empty($m)){
+                        PageMetric::insert($metric);
+                    }
+                    else{ // update only the accurate fields if there's existing page metric
+                        $m->likes = $metric['likes'];
+                        $m->views = $metric['views'];
+                        $m->impressions = $metric['impressions'];
+                        $m->engagements = $metric['engagements'];
+                        $m->negative_feedback = $metric['negative_feedback'];
+                        $m->new_likes = $metric['new_likes'];
+                        $m->content_activity = $metric['content_activity'];
+                        $m->date_retrieved = $metric['date_retrieved'];
+                        $m->facebook_page_id = $metric['facebook_page_id'];
+                        $m->video_views = $metric['video_views'];
+                        $m->save();
+                    }
+                }
+
+                return response()->json($metricsArr);
+            }
+            return response()->json('invalid file type');
+        }
+        return response()->json('no file');        
+    }
+
+    public function csvToArray($filename, $pageId){
+        if (!file_exists($filename))
+            return false;
+
+        $metrics = [];
+        if(($handle = fopen($filename, 'r')) !== false){
+            $header = fgetcsv($handle);
+            $header[0] = "Date";
+            // return $header;
+            $c = 0;
+            while ($row = fgetcsv($handle)) {
+                if($c == 0){
+                    $c++;
+                    continue;
+                }
+
+                $d = [];
+                $data = array_combine($header, $row);
+                $d["likes"] = (int) $data["Lifetime Total Likes"];
+                $d["views"] = (int) $data["Daily Logged-in Page Views"]; // not accurate
+                $d["impressions"] = (int) $data["Daily Total Impressions"];
+                $d["engagements"] = (int) $data["Daily Page Engaged Users"];
+                $d["posts_engagements"] = 0;  // not included in csv so 0
+                $d["content_activity"] = (int) $data["Daily Page Stories By Story Type - checkin"] + (int) $data["Daily Page Stories By Story Type - coupon"] + (int) $data["Daily Page Stories By Story Type - event"] + (int) $data["Daily Page Stories By Story Type - fan"] + (int) $data["Daily Page Stories By Story Type - mention"] + (int) $data["Daily Page Stories By Story Type - other"] + (int) $data["Daily Page Stories By Story Type - page post"] + (int) $data["Daily Page Stories By Story Type - question"] + (int) $data["Daily Page Stories By Story Type - user post"];   // not included in csv so 0
+                $d["negative_feedback"] = (int) $data["Daily Negative Feedback"];
+                $d["new_likes"] =(int)  $data["Daily New Likes"];
+                $d["date_retrieved"] = date('Y-m-d', strtotime($data["Date"] . ' +1 day'));
+                $d["video_views"] = (int) $data["Daily Total Video Views"];
+                $d["facebook_page_id"] = (int) $pageId;
+
+                array_push($metrics, $d);
+            }
+        }
+        return $metrics;
+    }
+
     public function getDashboardMetricsFans(Request $request, $pageId, Facebook $fb){
+        $this->getPagePostsDetails($request, $pageId, $fb);
         $lastDate = FansCountryMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
 
          if($lastDate == date("Y-m-d", strtotime("-3 days",time()))){
@@ -151,39 +228,57 @@ class FacebookController extends BaseController
     }
 
     public function getDashboardMetrics(Request $request, $pageId, Facebook $fb){
-        $this->getPagePostsDetails($request, $pageId, $fb);
         // check if there is existing analytics in the page_metrics table
-        $lastDate = PageMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
-        
-        if($lastDate == date("Y-m-d", strtotime("-3 days",time()))){
-            return response()->json([]);
-        }
+        $minDate = PageMetric::where('facebook_page_id', '=', $pageId)->min('date_retrieved');
+        $maxDate = PageMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
 
-        // set since params to date 2yrs ago
-        $time = strtotime("-2 years", time());
-        $since = date("Y-m-d", $time);
-        $days = 728;
-        // if there is existing analytics in the table
-        if(!is_null($lastDate)){
-            // add 2 days from the last date retrieved from the db
-            if($since == DateHelper::addDays($lastDate, 2)){
-                $since = DateHelper::addDays($lastDate, 2); 
+        $last2Yrs1 = date("Y-m-d", strtotime("-2 years", time() + 3600*8));
+        $last2Yrs2 = date("Y-m-d", strtotime("+1 day", strtotime($last2Yrs1)));  // last 2 yrs + 1 day
+        $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
+
+        // return response()->json([$last2Yrs, $yesterday]);
+
+        $until = "";
+        if($minDate != $last2Yrs2){
+            $since = $last2Yrs1;
+        }
+        else{
+            if($minDate == $last2Yrs2 && $maxDate == $yesterday){
+                return response()->json([]); // up to date
             }
             else{
-                $since = $lastDate;
+                $since = $maxDate;
+                $until = date("Y-m-d", time() + 3600*8);
             }
         }
+
+        // // set since params to date 2yrs ago
+        // $time = strtotime("-2 years", time());
+        // $since = date("Y-m-d", $time);
+        $days = 728;
+        // if there is existing analytics in the table
+        // if(!is_null($lastDate)){
+        //     // add 2 days from the last date retrieved from the db
+        //     if($since == DateHelper::addDays($lastDate, 2)){
+        //         $since = DateHelper::addDays($lastDate, 2); 
+        //     }
+        //     else{
+        //         $since = $lastDate;
+        //     }
+        // }
+
         // list the metrics to be fetched
+        
         $batch = [
-            'likes' => $fb->request('GET',"/{$pageId}/insights?metric=page_fans&since={$since}"),
-            'views' => $fb->request('GET',"/{$pageId}/insights?metric=page_views_total&since={$since}"),
-            'impressions' => $fb->request('GET',"/{$pageId}/insights?metric=page_impressions&since={$since}"),
-            'engangements' => $fb->request('GET',"/{$pageId}/insights?metric=page_engaged_users&since={$since}"),
-            'posts_engagements' => $fb->request('GET',"/{$pageId}/insights?metric=page_post_engagements&since={$since}"),
-            'negative_feedback' => $fb->request('GET',"/{$pageId}/insights?metric=page_negative_feedback&since={$since}"),
-            'video_views' => $fb->request('GET',"/{$pageId}/insights?metric=post_video_views&since={$since}"),
-            'new_likes' => $fb->request('GET',"/{$pageId}/insights?metric=page_fan_adds&since={$since}"),
-            'content_activity' => $fb->request('GET',"/{$pageId}/insights?metric=page_content_activity&since={$since}&period=day"),
+            'likes' => $fb->request('GET',"/{$pageId}/insights?metric=page_fans&since={$since}&until={$until}"),
+            'views' => $fb->request('GET',"/{$pageId}/insights?metric=page_views_total&since={$since}&until={$until}"),
+            'impressions' => $fb->request('GET',"/{$pageId}/insights?metric=page_impressions&since={$since}&until={$until}"),
+            'engangements' => $fb->request('GET',"/{$pageId}/insights?metric=page_engaged_users&since={$since}&until={$until}"),
+            'posts_engagements' => $fb->request('GET',"/{$pageId}/insights?metric=page_post_engagements&since={$since}&until={$until}"),
+            'negative_feedback' => $fb->request('GET',"/{$pageId}/insights?metric=page_negative_feedback&since={$since}&until={$until}"),
+            'video_views' => $fb->request('GET',"/{$pageId}/insights?metric=page_video_views&since={$since}&until={$until}"),
+            'new_likes' => $fb->request('GET',"/{$pageId}/insights?metric=page_fan_adds&since={$since}&until={$until}"),
+            'content_activity' => $fb->request('GET',"/{$pageId}/insights?metric=page_content_activity&period=day&since={$since}&until={$until}"),
         ];
         $facebookInsight = new FacebookInsight($fb, $pageId);
         $responses = [];
@@ -212,21 +307,28 @@ class FacebookController extends BaseController
         }
 
         $m = []; // gen metrics array
-        $c = []; // content act by type array
-        $l = []; // like source array
         $days = count($metrics[0][0]['values']);
+
         for($i = 0; $i<$days; $i++ ){
             $metricObj = FacebookParser::parseGeneral($metrics, $i, $pageId);
 
             array_push($m, $metricObj);
         }
         // save to db
-        PageMetric::insert($m);
+        $rowsToInsert = [];
+        foreach ($m as $key => $row){
+            PageMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+            // $n = PageMetric::firstOrNew(['date_retrieved', $row['date_retrieved']], $row);
+            // if(empty($n)){
+            //     array_push($rowsToInsert, $n);
+            // }
+            // else{
+            //     PageMetric::updateOrCreate();
+            // }
+        }
         
         $resp = ['page_metrics' => $m];
          
-        if(!is_null($lastDate))
-            return $this->sendResponse($resp, 'Metrics succesfully updated');
         return $this->sendResponse($resp, 'Metrics succesfully saved');
     }
     

@@ -40,6 +40,7 @@ Route::get('/fb/{pageId}/dashboard-metrics-fans', 'FacebookController@getDashboa
 Route::get('/fb/{pageId}/fetch-metrics', 'FacebookController@fetchMetrics')->name('fb.fetchMetrics');
 Route::get('/fb/{pageId}/posts-details', 'FacebookController@getPagePostsDetails')->name('fb.getPagePostsDetails');
 Route::get('/fb/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
+Route::post("/fb/{pageId}/upload", 'FacebookController@uploadCSV')->name('upload');
 
 Route::get("/twitter/{userId}/accounts", 'TwitterController@getAccountsOfUser')->name('
 	getAccountsOfUser');

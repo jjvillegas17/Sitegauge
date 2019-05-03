@@ -90,7 +90,7 @@ class TwitterController extends BaseController
     }
 
     public function csvToArray($filename, $twitterId){
-    	 if (!file_exists($filename))
+    	if (!file_exists($filename))
         	return false;
 
 	    $metrics = [];
