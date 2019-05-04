@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateFacebookPagesTable extends Migration
+class CreateUserTwitterAccountsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,11 +13,10 @@ class CreateFacebookPagesTable extends Migration
      */
     public function up()
     {
-        Schema::create('facebook_pages', function (Blueprint $table) {
-            $table->unsignedBigInteger('id')->primary();
-            $table->string('access_token');
-            $table->string('page_name');
-            $table->timestamps();
+        Schema::create('user_twitter_accounts', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('user_id');
+            $table->string('twitter_account_id');
         });
     }
 
@@ -28,6 +27,6 @@ class CreateFacebookPagesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('facebook_pages');
+        Schema::dropIfExists('user_twitter_accounts');
     }
 }

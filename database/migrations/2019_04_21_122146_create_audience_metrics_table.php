@@ -18,12 +18,13 @@ class CreateAudienceMetricsTable extends Migration
             $table->integer('sessions');
             $table->integer('users');
             $table->integer('new_users');
-            $table->integer('sessions_per_user');
+            $table->float('sessions_per_user', 5, 2);
             $table->integer('pageviews');
-            $table->integer('pageviews_per_session');
-            $table->time('avg_session_duration');
+            $table->float('pages_per_session', 5, 2);
+            $table->float('avg_session_duration', 5, 2);
             $table->float('bounce_rate', 5, 2);
             $table->date('date_retrieved');
+            $table->unsignedBigInteger('uploader_id')->nullable(); // userId of the uploaer
             $table->string('profile_id');
             $table->foreign('profile_id')->references('profile_id')->on('google_analytics')->onDelete('cascade');
             $table->timestamps();

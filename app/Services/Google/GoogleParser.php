@@ -27,7 +27,12 @@ class GoogleParser{
 		          $entry = $metricHeaders[$k];
 		          // echo "<pre>" . print_r($entry->getName() . ": " . $values[$k]) . "</pre>";
 		          if($entry->getName() == 'avg_session_duration'){
-		          	$audience[$entry->getName()] = gmdate("H:i:s",(float)$values[$k]);
+		          	$time = strtotime((float)$values[$k]);
+		          	$time = date("H:i:s", $time);
+                    $time = explode(':', $time);
+                    $mins = ((int) $time[1]*60 + (int) $time[2])/60;
+                    $mins = round($mins, 2);
+		          	$audience[$entry->getName()] = $mins;
 		          	continue;
 		          }
 		          $audience[$entry->getName()] = $values[$k];

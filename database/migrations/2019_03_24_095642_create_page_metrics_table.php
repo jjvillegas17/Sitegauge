@@ -29,6 +29,7 @@ class CreatePageMetricsTable extends Migration
             $table->integer('new_likes')->nullable();
             $table->integer('video_views')->nullable();
             $table->date('date_retrieved');
+            $table->unsignedBigInteger('uploader_id')->nullable();  // userId of the uploader
             $table->unsignedBigInteger('facebook_page_id');
             $table->foreign('facebook_page_id')->references('id')->on('facebook_pages')->onDelete('cascade');
             $table->timestamps();

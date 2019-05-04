@@ -8,8 +8,8 @@ class GoogleAnalytics extends Model
 {
    protected $primaryKey = 'profile_id';
    
-   public function user(){
-    	return $this->belongsTo('App\User');
+   public function users(){
+    	return $this->belongsToMany('App\User', 'user_google_analytics');
    }
 
    public function acquisitionMetrics(){

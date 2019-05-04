@@ -43,14 +43,14 @@ class User extends Authenticatable
     ];
 
     public function facebookPages(){
-        return $this->hasMany('App\FacebookPage', 'user_id');
+        return $this->belongsToMany('App\FacebookPage', 'user_pages');
     }
 
     public function twitterAccounts(){
-        return $this->hasMany('App\TwitterAccount', 'user_id');
+        return $this->belongsToMany('App\TwitterAccount', 'user_twitter_accounts');
     }
 
     public function googleAnalyticsAccounts(){
-        return $this->hasMany('App\GoogleAnalytics', 'user_id');   
+        return $this->belongsToMany('App\GoogleAnalytics', 'user_google_analytics');   
     }
 }

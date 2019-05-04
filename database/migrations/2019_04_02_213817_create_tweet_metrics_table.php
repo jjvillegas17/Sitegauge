@@ -28,6 +28,7 @@ class CreateTweetMetricsTable extends Migration
             $table->integer('user_profile_clicks');
             $table->integer('media_views');
             $table->integer('media_engagements');
+            $table->unsignedBigInteger('uploader_id')->nullable(); // userId of the uploader
             $table->string('twitter_id');
             $table->foreign('twitter_id')->references('id')->on('twitter_accounts')->onDelete('cascade');
         });

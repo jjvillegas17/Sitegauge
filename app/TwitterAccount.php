@@ -11,8 +11,8 @@ class TwitterAccount extends Model
 
     protected $fillable = ['id', 'username', 'name', 'followers', 'following', 'tweets', 'user_id'];
 
-    public function user(){
-    	return $this->belongsTo('App\User');
+    public function users(){
+    	return $this->belongsToMany('App\User', 'user_twitter_accounts');
     }
 
     public function tweetMetrics(){

@@ -18,12 +18,12 @@ class CreateGoogleAnalyticsTable extends Migration
             $table->string('profile_name');
             $table->string('token');
             $table->string('refresh_token');
+            $table->string('created');
+            $table->integer('expires_in');
             $table->string('email');
             $table->string('property_name');
             $table->string('property_id');
             $table->date('date_created');
-            $table->unsignedBigInteger('user_id');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });
     }

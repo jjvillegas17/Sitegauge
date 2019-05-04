@@ -52,12 +52,13 @@ class LoginController extends BaseController
 
     public function handleGoogleCallback(Request $request, Google_Client $client){
         $client->authenticate($request->code);
-        $token = $client->getAccessToken()['access_token'];
-        $refreshToken = $client->getAccessToken()['refresh_token'];
+        $token = $client->getAccessToken();
 
-        $user = Socialite::driver('google')->userFromToken($token);
+        $user = Socialite::driver('google')->userFromToken($token["access_token"]);
         
-        return redirect()->away("https://localhost:3000/addWebsite?token={$token}&refreshToken={$refreshToken}&email={$user->email}");
+        $token["email"] = $user->email;
+
+        return redirect()->away("https://localhost:3000/addWebsite?" . http_build_query($token));
     }    
 
     public function redirectToTwitter(Request $request){

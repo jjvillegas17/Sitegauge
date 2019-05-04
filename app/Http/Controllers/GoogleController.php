@@ -34,14 +34,163 @@ class GoogleController extends BaseController{
             return;
         }
         $this->client = $client;
-        $this->client->setAccessToken($request->token);
+
+        $acct = GoogleAnalytics::find($request->profileId);
+        if(empty($acct)){
+            $this->client->setAccessToken($request->token);
+            return;
+        }
+
+        $accessToken = ["access_token" => $acct->getAttributes()["token"], "refresh_token" => $acct->getAttributes()["refresh_token"],"created" => (int) $acct->getAttributes()["created"], "expires_in" => $acct->getAttributes()["expires_in"]];
+        $this->client->setAccessToken($accessToken);
+        $this->client->setAccessType("offline");
+
+        if($this->client->isAccessTokenExpired()){
+            $refreshToken = $this->client->getRefreshToken();
+            $this->client->refreshToken($refreshToken);
+            $newAccessToken = $this->client->getAccessToken();
+            
+            //update model
+            $acct->token = $newAccessToken["access_token"];
+            $acct->save();
+        }
+
         $this->analytics = new Google_Service_AnalyticsReporting($this->client);
     }
 
+    public function uploadCSV(Request $request, $profileId, $metric){
+        $types = ['application/csv','application/excel','application/vnd.ms-excel','application/vnd.msexcel','text/csv','text/anytext','text/comma-separated-values'];
+
+        if ($request->hasFile('file')) {
+            $rFile = $request->file('file'); 
+            if($rFile && in_array($rFile->getClientMimeType(), $types)) {
+                $file = $request->file("file");
+
+                $metricsArr = $this->csvToArrayAudience($file, $profileId, $metric);
+                    // return response()->json($metricsArr);
+
+                foreach ($metricsArr as $key => $metric) {
+                    $m = AudienceMetric::where([
+                    ['date_retrieved', $metric['date_retrieved']],
+                    ['profile_id', $metric['profile_id']]
+                    ])->first();
+
+                    if(empty($m)){
+                        AudienceMetric::insert($metric);
+                    }
+                    else{
+                        $m->{strtolower(preg_replace('/\s+/', '_', $request->metric))} = $metric[strtolower(preg_replace('/\s+/', '_', $request->metric))];
+                        $m->save();
+                    }
+                }
+
+                return response()->json($metricsArr);
+            }
+            return response()->json('invalid file type');
+        }
+        return response()->json('no file');        
+    }
+
+    public function csvToArrayAudience($filename, $profileId, $metric){
+        if (!file_exists($filename))
+            return false;
+
+        $metrics = [];
+        if(($handle = fopen($filename, 'r')) !== false){
+            $c = 0;
+            while ($row = fgetcsv($handle)) {
+                if($c <=5 ){
+                    $c++;
+                    continue;
+                }
+                if($c == 6){
+                    $header = $row;
+                    // validate if header[1] == metric for csv file checking
+                    $header[1] = $metric;
+                    $c++;
+                    continue;
+                }
+
+                $d = [];
+                $d["users"] = 0;
+                $d["sessions"] = 0;
+                $d["new_users"] = 0;
+                $d["sessions_per_user"] = 0;
+                $d["pageviews"] = 0;
+                $d["pages_per_session"] = 0;   
+                $d["avg_session_duration"] = 0; 
+                $d["bounce_rate"] = 0;
+
+                $data = array_combine($header, $row);
+                $metricName = strtolower(preg_replace('/\s+/', '_', $metric)); // snakecase the metricName
+                $d[$metricName] = $data[$metric];
+                if($metricName == "bounce_rate"){
+                    $d[$metricName] = str_replace("%", "", $data[$metric]);    
+                }
+                if($metricName == "avg_session_duration"){
+                    $time = strtotime($data[$metric]);
+                    $time = date("H:i:s", $time);
+                    $time = explode(':', $time);
+                    $mins = ((int) $time[1]*60 + (int) $time[2])/60;
+                    $mins = round($mins, 2);
+                    $d[$metricName] = $mins;    
+                }
+                $d["date_retrieved"] = date("Y-m-d", strtotime($data["Day Index"]));
+                $d["profile_id"] = $profileId;
+                array_push($metrics, $d);
+            }
+        }
+        array_pop($metrics);
+        return $metrics;
+    }
+
+    public function csvToArrayAcquisition($filename, $profileId){
+        if (!file_exists($filename))
+            return false;
+
+        $metrics = [];
+        if(($handle = fopen($filename, 'r')) !== false){
+            $header = fgetcsv($handle);
+            $header[0] = "Date";
+            // return $header;
+            $c = 0;
+            while ($row = fgetcsv($handle)) {
+                if($c == 0){
+                    $c++;
+                    continue;
+                }
+
+                $d = [];
+                $data = array_combine($header, $row);
+
+                array_push($metrics, $d);
+            }
+        }
+        return $metrics;
+    }
     public function getAudienceMetrics($profileId){
+        $minDate = AudienceMetric::where('profile_id', '=', $profileId)->min('date_retrieved');
+        $maxDate = AudienceMetric::where('profile_id', '=', $profileId)->max('date_retrieved');
+
+        $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
+
         $dateCreated = GoogleAnalytics::where("profile_id", "=", $profileId)->value('date_created');
+
+        $start = '';
+        if($minDate != $dateCreated){
+            $start = $dateCreated;
+        }
+        else{
+            if($minDate == $dateCreated && $maxDate >= $yesterday){
+                return response()->json([]); // up to date
+            }
+            else{
+                $start = date("Y-m-d", strtotime("+1 day", strtotime($maxDate)));
+            }
+        }
+
         $dateRange = new Google_Service_AnalyticsReporting_DateRange();
-        $dateRange->setStartDate($dateCreated);
+        $dateRange->setStartDate($start);
         $dateRange->setEndDate("today");
 
         $sessions = new Google_Service_AnalyticsReporting_Metric();
@@ -66,7 +215,7 @@ class GoogleController extends BaseController{
 
         $pageviewsPerSession = new Google_Service_AnalyticsReporting_Metric();
         $pageviewsPerSession->setExpression("ga:pageviewsPerSession");
-        $pageviewsPerSession->setAlias("pageviews_per_session");
+        $pageviewsPerSession->setAlias("pages_per_session");
 
         $avgSessionDuration = new Google_Service_AnalyticsReporting_Metric();
         $avgSessionDuration->setExpression("ga:avgSessionDuration");
@@ -94,15 +243,50 @@ class GoogleController extends BaseController{
         $body = new Google_Service_AnalyticsReporting_GetReportsRequest();
         $body->setReportRequests([$request]);
         $arr = GoogleParser::parseAudience($this->analytics->reports->batchGet($body), $profileId);
-        AudienceMetric::insert($arr);
+        
+        $toInsert = [];
+        foreach ($arr as $key => $row){
+            $m = AudienceMetric::where(['date_retrieved' => $row['date_retrieved']])->first();
+            if(empty($m)){
+                array_push($toInsert, $row);
+            }
+            else{ // update only the accurate fields if there's existing page metric
+                AudienceMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+            }
+        }
+
+        AudienceMetric::insert($toInsert);
+
         return response()->json($arr);
 
     }
 
     public function getAcquisitionMetrics($profileId){
+        $minDate = AcquisitionMetric::where('profile_id', '=', $profileId)->min('date_retrieved');
+        $maxDate = AcquisitionMetric::where('profile_id', '=', $profileId)->max('date_retrieved');
+
+        $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
+
         $dateCreated = GoogleAnalytics::where("profile_id", "=", $profileId)->value('date_created');
+        $dateCreated = date("Y-m-d", strtotime("+1 day", strtotime($dateCreated)));
+
+        $start = '';
+        if($minDate != $dateCreated){
+            $start = $dateCreated;
+        }
+        else{
+            if($minDate == $dateCreated && $maxDate >= $yesterday){
+                return response()->json([]); // up to date
+            }
+            else{
+                $start = date("Y-m-d", strtotime("+1 day", strtotime($maxDate)));
+            }
+        }
+
+        // dd($start, $minDate, $dateCreated, $maxDate, $yesterday);
+
         $dateRange = new Google_Service_AnalyticsReporting_DateRange();
-        $dateRange->setStartDate($dateCreated);
+        $dateRange->setStartDate($start);
         $dateRange->setEndDate("today");
 
         $users = new Google_Service_AnalyticsReporting_Metric();
@@ -129,7 +313,20 @@ class GoogleController extends BaseController{
         $body = new Google_Service_AnalyticsReporting_GetReportsRequest();
         $body->setReportRequests([$request]);
         $arr = GoogleParser::parseAcquisition($this->analytics->reports->batchGet($body), $profileId);
-        AcquisitionMetric::insert($arr);
+
+        $toInsert = [];
+        foreach ($arr as $key => $row){
+            $m = AcquisitionMetric::where(['date_retrieved' => $row['date_retrieved']])->first();
+            if(empty($m)){
+                array_push($toInsert, $row);
+            }
+            else{ // update only the accurate fields if there's existing page metric
+                AcquisitionMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+            }
+        }
+
+        AcquisitionMetric::insert($toInsert);
+
         return response()->json($arr);
     }
 
@@ -143,9 +340,33 @@ class GoogleController extends BaseController{
     }
 
     public function getBehaviorMetrics($profileId){
+        $minDate = BehaviorMetric::where('profile_id', '=', $profileId)->min('date_retrieved');
+        $maxDate = BehaviorMetric::where('profile_id', '=', $profileId)->max('date_retrieved');
+
+        $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
+
+        $dateCreated = GoogleAnalytics::where("profile_id", "=", $profileId)->value('date_created');
+        $dateCreated = date("Y-m-d", strtotime("+1 day", strtotime($dateCreated)));
+
+        $start = '';
+        if($minDate != $dateCreated){
+            // dd(3);
+            $start = $dateCreated;
+        }
+        else{
+            if($minDate == $dateCreated && $maxDate >= $yesterday){
+                // dd(1);
+                return response()->json([]); // up to date
+            }
+            else{
+                // dd(2);
+                $start = date("Y-m-d", strtotime("+1 day", strtotime($maxDate)));
+            }
+        }
+
         $dateCreated = GoogleAnalytics::where("profile_id", "=", $profileId)->value('date_created');
         $dateRange = new Google_Service_AnalyticsReporting_DateRange();
-        $dateRange->setStartDate($dateCreated);
+        $dateRange->setStartDate($start);
         $dateRange->setEndDate("today");
 
         $pageviews = new Google_Service_AnalyticsReporting_Metric();
@@ -171,7 +392,18 @@ class GoogleController extends BaseController{
         $body = new Google_Service_AnalyticsReporting_GetReportsRequest();
         $body->setReportRequests([$request]);
         $behaviors = GoogleParser::parseBehavior($this->analytics->reports->batchGet($body), $profileId);
-        BehaviorMetric::insert($behaviors);
+        
+        $toInsert = [];
+        foreach ($behaviors as $key => $row){
+            $m = BehaviorMetric::where(['date_retrieved' => $row['date_retrieved'], 'page_path' => $row['page_path']])->first();
+            if(empty($m)){
+                array_push($toInsert, $row);
+            }
+            else{ // update only the accurate fields if there's existing page metric
+                BehaviorMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved'], 'page_path' => $row['page_path']], $row);
+            }
+        }
+        BehaviorMetric::insert($toInsert);
         return response()->json($behaviors);
     }
 
@@ -233,7 +465,9 @@ class GoogleController extends BaseController{
             $googleAnalytics->property_id = $request->propertyId;
             $googleAnalytics->profile_name = $request->profileName;
             $googleAnalytics->profile_id = $request->profileId;
-            $googleAnalytics->user_id = $request->userId;
+            $googleAnalytics->created = $request->created;
+            $googleAnalytics->expires_in = $request->expiresIn;
+            $googleAnalytics->users()->attach($request->userId);
             $googleAnalytics->save();
             return $this->sendResponse($googleAnalytics, 'Account succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){

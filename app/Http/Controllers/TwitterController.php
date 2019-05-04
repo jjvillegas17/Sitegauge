@@ -27,7 +27,7 @@ class TwitterController extends BaseController
             $twitterAccount->tweets = $request->tweets;
             $twitterAccount->following = $request->following;
             $twitterAccount->followers = $request->followers;
-            $twitterAccount->user_id= $request->userId;
+            $twitterAccount->users()->attach($request->userId);
             $twitterAccount->save();	
             return $this->sendResponse($twitterAccount, 'Twitter account succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){

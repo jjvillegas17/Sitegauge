@@ -34,11 +34,13 @@ class FacebookController extends BaseController
     public function addPage(Request $request, Facebook $fb){
         // return response()->json($request);
         try{
+            // $user = User::find(7);
+            // return response()->json($user->facebookPages()->get());
             $facebookPage = new FacebookPage;
             $facebookPage->id = $request->pageId;
             $facebookPage->access_token = $request->pageToken;
             $facebookPage->page_name = $request->pageName;
-            $facebookPage->user_id = $request->userId;
+            $facebookPage->users()->attach($request->userId);
             $facebookPage->save();
             return $this->sendResponse($facebookPage, 'Page succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){
@@ -243,7 +245,7 @@ class FacebookController extends BaseController
             $since = $last2Yrs1;
         }
         else{
-            if($minDate == $last2Yrs2 && $maxDate == $yesterday){
+            if($minDate == $last2Yrs2 && $maxDate >= $yesterday){
                 return response()->json([]); // up to date
             }
             else{
@@ -386,9 +388,14 @@ class FacebookController extends BaseController
         }
         return response()->json(['post_detail_metrics' => $postsDetails]);
     }
+
     public function getMinDate($pageId){
         $min = FacebookPage::find($pageId)->pageMetrics->min('date_retrieved');
         return $this->sendResponse($min, 'Minimum date succesfully fetched');
+    }
+
+    public function deletePage(Request $request, $userId){
+        // $request->pageId
     }
     
 }

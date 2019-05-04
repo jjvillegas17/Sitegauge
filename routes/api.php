@@ -40,7 +40,7 @@ Route::get('/fb/{pageId}/dashboard-metrics-fans', 'FacebookController@getDashboa
 Route::get('/fb/{pageId}/fetch-metrics', 'FacebookController@fetchMetrics')->name('fb.fetchMetrics');
 Route::get('/fb/{pageId}/posts-details', 'FacebookController@getPagePostsDetails')->name('fb.getPagePostsDetails');
 Route::get('/fb/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
-Route::post("/fb/{pageId}/upload", 'FacebookController@uploadCSV')->name('upload');
+Route::post("/fb/{pageId}/upload", 'FacebookController@uploadCSV');
 
 Route::get("/twitter/{userId}/accounts", 'TwitterController@getAccountsOfUser')->name('
 	getAccountsOfUser');
@@ -56,6 +56,7 @@ Route::get("/google/{profileId}/get-audience-metrics", 'GoogleController@getAudi
 Route::get("/google/{profileId}/get-acquisition-metrics", 'GoogleController@getAcquisitionMetrics');
 Route::get("/google/{profileId}/get-behavior-metrics", 'GoogleController@getBehaviorMetrics');
 Route::get("/google/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
+Route::post("/google/{profileId}/upload/{metric}", 'GoogleController@uploadCSV');
 
 Route::get("/insights/fb/{pageId}/most-engaged-post", 'InsightController@getMostEngagedPost');
 Route::get("/insights/fb/{pageId}/top-like-source", 'InsightController@getTopLikeSource');
