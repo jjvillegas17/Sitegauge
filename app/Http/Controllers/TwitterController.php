@@ -18,17 +18,23 @@ class TwitterController extends BaseController
 		'consumer_secret' => "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE" 
     ];
 
-    public function addAccount(Request $request){
+    public function addAccount(Request $request, $userId){
     	try{
-            $twitterAccount = new TwitterAccount;
+    		$account = TwitterAccount::find($request->id);
+            $twitterAccount = empty($account)? new TwitterAccount : $account;
             $twitterAccount->id = $request->id;
             $twitterAccount->username = $request->username;
             $twitterAccount->name = $request->name;
             $twitterAccount->tweets = $request->tweets;
             $twitterAccount->following = $request->following;
             $twitterAccount->followers = $request->followers;
-            $twitterAccount->users()->attach($request->userId);
-            $twitterAccount->save();	
+            $twitterAccount->save();
+            $accs = User::find($userId)->twitterAccounts()->where('user_id', $userId)->get();
+            // return response()->json($accs);
+            if(count($accs) == 0){
+            	// return response()->json("mt");
+            	User::find($userId)->twitterAccounts()->attach($request->id);
+            }
             return $this->sendResponse($twitterAccount, 'Twitter account succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){
             return response()->json($ex->getMessage());
@@ -38,9 +44,13 @@ class TwitterController extends BaseController
         } 
     }
 
-    public function getTweetMetrics($twitterId, Request $request){
+    public function getTweetMetrics($userId, $twitterId, Request $request){
     	// $tweetMetrics = TwitterAccount::find($twitterId)->tweetMetrics->where("created_date", ">=", "{$request->start}")->where("created_date", "<=", "{$request->end}");
-    	$tweetMetrics = TwitterAccount::find($twitterId)->tweetMetrics()->orderBy('created_date', 'desc')->offset(0)->limit(10)->get();
+    	$tweetMetrics = TwitterAccount::find($twitterId)->tweetMetrics()
+    			->where(function ($query) use ($userId) {
+                	$query->where("uploader_id", "{$userId}")
+                    ->orWhereNull("uploader_id");
+           		 })->orderBy('created_date', 'desc')->offset(0)->limit(10)->get();
 
     	return response()->json($tweetMetrics);
     }
@@ -72,14 +82,39 @@ class TwitterController extends BaseController
 		
 	}
 
-    public function uploadCSV(Request $request, $twitterId){
+    public function uploadCSV(Request $request, $userId, $twitterId){
     	if ($request->hasFile('file')) {
 		    if($request->file('file')) {
 			    $file = $request->file("file");
-		  		$tweetArr = $this->csvToArray($file, $twitterId);
+		  		$tweetArr = $this->csvToArray($file, $twitterId, $userId);
 
-		  		foreach ($tweetArr as $key => $tweet) {
-		  			TweetMetric::updateOrCreate(['id' => $tweet['id']], $tweet);
+		  		foreach ($tweetArr as $key => $metric) {
+		  			$m = TweetMetric::where([
+                        ['tweet_id', $metric['tweet_id']],
+                        ['twitter_id', $metric['twitter_id']]
+                        ])->get();
+
+		  			if(empty($m)){ // if wala dun sa 2 year range data, insert
+                        TweetMetric::insert($metric);
+                    }
+                    // problem in twitter accounts and fb accts 
+                    else{
+                        $hasSameUploaderId = false;
+                        foreach ($m as $key => $row) {
+                            if($row->uploader_id == $userId){ // upload only rows that are from upload and not from api
+                                TweetMetric::updateOrCreate(['tweet_id' => $metric['tweet_id'], 'uploader_id' => $metric['uploader_id']],$metric);
+                                $hasSameUploaderId = true;
+                                break;    
+                            }
+                            else if(is_null($row->uploader_id)){ // galing from api
+                                $hasSameUploaderId = true;
+                                break; 
+                            }
+                        }
+                        if($hasSameUploaderId == false){
+                        	TweetMetric::insert($metric);
+                        }                          
+                    }
 		  		}
 
 		  		return response()->json($tweetArr);
@@ -89,7 +124,7 @@ class TwitterController extends BaseController
 
     }
 
-    public function csvToArray($filename, $twitterId){
+    public function csvToArray($filename, $twitterId, $userId){
     	if (!file_exists($filename))
         	return false;
 
@@ -101,7 +136,7 @@ class TwitterController extends BaseController
 	        while ($row = fgetcsv($handle)) {
 	        	$d = [];
 			  	$data = array_combine($header, $row);
-			  	$d['id'] = $data['Tweet id'];
+			  	$d['tweet_id'] = $data['Tweet id'];
 			  	$d['link'] = $data['Tweet permalink'];
 			  	$d['text'] = $data['Tweet text'];
 			  	$created_date = new \DateTime($data['time']);
@@ -117,6 +152,7 @@ class TwitterController extends BaseController
 			  	$d['user_profile_clicks'] = $data['user profile clicks'];
 			  	$d['media_views'] = $data['media views'];
 			  	$d['media_engagements'] = $data['media engagements'];
+			  	$d['uploader_id'] = $userId;
 			  	$d['twitter_id'] = (string) $twitterId;
 			  	array_push($metrics, $d);
 			}

@@ -21,6 +21,7 @@ class FacebookParser
         $m['content_activity'] = $metrics[8][0]['values'][$i]['value'];
         $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[0][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = (int) $pageId;
+        $m['uploader_id'] = NULL;
         return $m;
     }
 

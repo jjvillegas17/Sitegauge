@@ -11,7 +11,7 @@ class FacebookPage extends Model
     }
 
     public function pageMetrics(){
-    	return $this->hasMany('App\PageMetric');
+    	return $this->hasMany('App\PageMetric', 'facebook_page_id');
     }
 
     public function postDetailsMetrics(){

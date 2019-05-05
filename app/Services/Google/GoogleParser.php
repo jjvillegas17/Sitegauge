@@ -39,6 +39,7 @@ class GoogleParser{
 		        }
 		      }
 		      $audience['profile_id'] = $profileId;
+		      $audience['uploader_id'] = null;
 		      array_push($arr, $audience);
 		    }
 

@@ -31,17 +31,23 @@ class FacebookController extends BaseController
         $token = explode('=', $request->pageToken);
         $this->fb->setDefaultAccessToken($token[0]);
     }
-    public function addPage(Request $request, Facebook $fb){
+    public function addPage(Request $request, Facebook $fb, $userId){
         // return response()->json($request);
         try{
             // $user = User::find(7);
             // return response()->json($user->facebookPages()->get());
-            $facebookPage = new FacebookPage;
+            $page = FacebookPage::find($request->pageId);
+            $facebookPage = empty($page)? new FacebookPage : $page;
             $facebookPage->id = $request->pageId;
             $facebookPage->access_token = $request->pageToken;
             $facebookPage->page_name = $request->pageName;
-            $facebookPage->users()->attach($request->userId);
             $facebookPage->save();
+            $accs = User::find($userId)->facebookPages()->where('user_id', $userId)->get();
+            // return response()->json($accs);
+            if(count($accs) == 0){
+                // return response()->json("mt");
+                User::find($userId)->facebookPages()->attach($request->pageId);
+            }
             return $this->sendResponse($facebookPage, 'Page succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){
             return response()->json($ex->getMessage());
@@ -52,35 +58,53 @@ class FacebookController extends BaseController
     }
 
     // b, c 
-    public function uploadCSV(Request $request, $pageId){
+    public function uploadCSV(Request $request, $userId, $pageId){
         $types = ['application/csv','application/excel','application/vnd.ms-excel','application/vnd.msexcel','text/csv','text/anytext','text/comma-separated-values'];
 
         if ($request->hasFile('file')) {
             $rFile = $request->file('file'); 
             if($rFile && in_array($rFile->getClientMimeType(), $types)) {
                 $file = $request->file("file");
-                $metricsArr = $this->csvToArray($file, $pageId);
+                $metricsArr = $this->csvToArray($file, $pageId, $userId);
 
                 foreach ($metricsArr as $key => $metric) {
                     $m = PageMetric::where([
                         ['date_retrieved', $metric['date_retrieved']],
                         ['facebook_page_id', $metric['facebook_page_id']]
-                        ])->first();
-                    if(empty($m)){
+                        ])->get();
+                    
+                    // return response()->json($m);
+
+                    if(empty($m)){ // if wala dun sa 2 year range data, insert
                         PageMetric::insert($metric);
                     }
-                    else{ // update only the accurate fields if there's existing page metric
-                        $m->likes = $metric['likes'];
-                        $m->views = $metric['views'];
-                        $m->impressions = $metric['impressions'];
-                        $m->engagements = $metric['engagements'];
-                        $m->negative_feedback = $metric['negative_feedback'];
-                        $m->new_likes = $metric['new_likes'];
-                        $m->content_activity = $metric['content_activity'];
-                        $m->date_retrieved = $metric['date_retrieved'];
-                        $m->facebook_page_id = $metric['facebook_page_id'];
-                        $m->video_views = $metric['video_views'];
-                        $m->save();
+                    else{
+                        $hasSameUploaderId = false;
+                        foreach ($m as $key => $row) {
+                            if($row->uploader_id == $userId){ // upload only rows that are from upload and not from api
+                                $row->likes = $metric['likes'];
+                                $row->views = $metric['views'];
+                                $row->impressions = $metric['impressions'];
+                                $row->engagements = $metric['engagements'];
+                                $row->negative_feedback = $metric['negative_feedback'];
+                                $row->new_likes = $metric['new_likes'];
+                                $row->content_activity = $metric['content_activity'];
+                                $row->date_retrieved = $metric['date_retrieved'];
+                                $row->facebook_page_id = $metric['facebook_page_id'];
+                                $row->video_views = $metric['video_views'];
+                                $row->uploader_id = $metric['uploader_id'];
+                                $row->save();
+                                $hasSameUploaderId = true;
+                                break;    
+                            }
+                            else if(is_null($row->uploader_id)){ // galing from api
+                                $hasSameUploaderId = true;
+                                break; 
+                            }
+                        }
+                        if($hasSameUploaderId == false){
+                            PageMetric::insert($metric);
+                        }                          
                     }
                 }
 
@@ -91,7 +115,7 @@ class FacebookController extends BaseController
         return response()->json('no file');        
     }
 
-    public function csvToArray($filename, $pageId){
+    public function csvToArray($filename, $pageId, $userId){
         if (!file_exists($filename))
             return false;
 
@@ -120,6 +144,7 @@ class FacebookController extends BaseController
                 $d["date_retrieved"] = date('Y-m-d', strtotime($data["Date"] . ' +1 day'));
                 $d["video_views"] = (int) $data["Daily Total Video Views"];
                 $d["facebook_page_id"] = (int) $pageId;
+                $d["uploader_id"] = $userId;
 
                 array_push($metrics, $d);
             }
@@ -231,16 +256,17 @@ class FacebookController extends BaseController
 
     public function getDashboardMetrics(Request $request, $pageId, Facebook $fb){
         // check if there is existing analytics in the page_metrics table
-        $minDate = PageMetric::where('facebook_page_id', '=', $pageId)->min('date_retrieved');
-        $maxDate = PageMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
+        $minDate = PageMetric::where('facebook_page_id', '=', $pageId)->whereNull('uploader_id')->min('date_retrieved');
+        $maxDate = PageMetric::where('facebook_page_id', '=', $pageId)->whereNull('uploader_id')->max('date_retrieved');
 
         $last2Yrs1 = date("Y-m-d", strtotime("-2 years", time() + 3600*8));
         $last2Yrs2 = date("Y-m-d", strtotime("+1 day", strtotime($last2Yrs1)));  // last 2 yrs + 1 day
         $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
 
-        // return response()->json([$last2Yrs, $yesterday]);
+        // return response()->json([$minDate, $last2Yrs2, $maxDate, $yesterday]);
 
         $until = "";
+        $toRepeat = true;
         if($minDate != $last2Yrs2){
             $since = $last2Yrs1;
         }
@@ -250,7 +276,15 @@ class FacebookController extends BaseController
             }
             else{
                 $since = $maxDate;
-                $until = date("Y-m-d", time() + 3600*8);
+                
+                $datetime1 = new \DateTime($since);
+                $datetime2 = new \DateTime(date("Y-m-d", time() + 3600*8));
+                $days = $datetime1->diff($datetime2)->format("%a");
+                
+                if($days <= 30){
+                    $until = date("Y-m-d", time() + 3600*8);
+                    $toRepeat = false;
+                }
             }
         }
 
@@ -329,8 +363,12 @@ class FacebookController extends BaseController
             // }
         }
         
-        $resp = ['page_metrics' => $m];
-         
+        $resp = ['page_metrics' => $m,];
+        
+        if($toRepeat == true){
+            $resp = $this->getDashboardMetrics($request, $pageId, $fb);
+        } 
+        
         return $this->sendResponse($resp, 'Metrics succesfully saved');
     }
     
@@ -340,9 +378,14 @@ class FacebookController extends BaseController
         return response()->json($pages);
     }
     // params: start, end, pageId
-    public function fetchMetrics(Request $request, $pageId){
+    public function fetchMetrics(Request $request, $userId, $pageId){
         $metrics = [];
-        $metrics['page_metrics']= FacebookPage::find($pageId)->pageMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+        $metrics['page_metrics']= FacebookPage::find($pageId)->pageMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->where(function ($query) use ($userId) {
+                $query->where("uploader_id", "{$userId}")
+                    ->orWhereNull("uploader_id");
+            })->get();
+        return response()->json($metrics);
+            // return response()->json($metrics); 
         // $metrics['like_source_metrics'] = FacebookPage::find($pageId)->likeSourceMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
         // $metrics['content_activity_by_type_metrics'] = FacebookPage::find($pageId)->contentActivityByTypeMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
         // $metrics['fans_country_metrics'] = FacebookPage::find($pageId)->fansCountryMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
@@ -389,8 +432,12 @@ class FacebookController extends BaseController
         return response()->json(['post_detail_metrics' => $postsDetails]);
     }
 
-    public function getMinDate($pageId){
-        $min = FacebookPage::find($pageId)->pageMetrics->min('date_retrieved');
+    public function getMinDate($userId, $pageId){
+        $min = FacebookPage::find($pageId)->pageMetrics()->where(function ($query) use ($userId) {
+                $query->where("uploader_id", "{$userId}")
+                    ->orWhereNull("uploader_id");
+            })->min('date_retrieved');
+
         return $this->sendResponse($min, 'Minimum date succesfully fetched');
     }
 

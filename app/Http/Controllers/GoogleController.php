@@ -58,29 +58,44 @@ class GoogleController extends BaseController{
         $this->analytics = new Google_Service_AnalyticsReporting($this->client);
     }
 
-    public function uploadCSV(Request $request, $profileId, $metric){
+    public function uploadCSV(Request $request, $userId, $profileId, $metric){
         $types = ['application/csv','application/excel','application/vnd.ms-excel','application/vnd.msexcel','text/csv','text/anytext','text/comma-separated-values'];
 
         if ($request->hasFile('file')) {
             $rFile = $request->file('file'); 
             if($rFile && in_array($rFile->getClientMimeType(), $types)) {
                 $file = $request->file("file");
-
-                $metricsArr = $this->csvToArrayAudience($file, $profileId, $metric);
+                $metricsArr = $this->csvToArrayAudience($file, $profileId, $metric, $userId);
                     // return response()->json($metricsArr);
 
                 foreach ($metricsArr as $key => $metric) {
+                    // return response()->json($metric);
                     $m = AudienceMetric::where([
                     ['date_retrieved', $metric['date_retrieved']],
                     ['profile_id', $metric['profile_id']]
-                    ])->first();
+                    ])->get();
 
                     if(empty($m)){
                         AudienceMetric::insert($metric);
                     }
                     else{
-                        $m->{strtolower(preg_replace('/\s+/', '_', $request->metric))} = $metric[strtolower(preg_replace('/\s+/', '_', $request->metric))];
-                        $m->save();
+                        $hasSameUploaderId = false;
+                        foreach ($m as $key => $row) {
+                            if($row->uploader_id == $userId){
+                                $row->{strtolower(preg_replace('/\s+/', '_', $request->metric))} = $metric[strtolower(preg_replace('/\s+/', '_', $request->metric))];
+                                $row->uploader_id = $metric["uploader_id"];
+                                $row->save();
+                                $hasSameUploaderId = true;
+                                break; 
+                            }
+                            else if(is_null($row->uploader_id)){ // galing from api
+                                $hasSameUploaderId = true;
+                                break; 
+                            }
+                        }
+                        if($hasSameUploaderId == false){
+                            AudienceMetric::insert($metric);
+                        } 
                     }
                 }
 
@@ -91,7 +106,7 @@ class GoogleController extends BaseController{
         return response()->json('no file');        
     }
 
-    public function csvToArrayAudience($filename, $profileId, $metric){
+    public function csvToArrayAudience($filename, $profileId, $metric, $userId){
         if (!file_exists($filename))
             return false;
 
@@ -137,6 +152,7 @@ class GoogleController extends BaseController{
                 }
                 $d["date_retrieved"] = date("Y-m-d", strtotime($data["Day Index"]));
                 $d["profile_id"] = $profileId;
+                $d["uploader_id"] = $userId;
                 array_push($metrics, $d);
             }
         }
@@ -168,15 +184,16 @@ class GoogleController extends BaseController{
         }
         return $metrics;
     }
-    public function getAudienceMetrics($profileId){
-        $minDate = AudienceMetric::where('profile_id', '=', $profileId)->min('date_retrieved');
-        $maxDate = AudienceMetric::where('profile_id', '=', $profileId)->max('date_retrieved');
+    public function getAudienceMetrics($userId, $profileId){
+        $minDate = AudienceMetric::where('profile_id', '=', $profileId)->whereNull('uploader_id')->min('date_retrieved');
+        $maxDate = AudienceMetric::where('profile_id', '=', $profileId)->whereNull('uploader_id')->max('date_retrieved');
 
         $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
 
         $dateCreated = GoogleAnalytics::where("profile_id", "=", $profileId)->value('date_created');
 
         $start = '';
+
         if($minDate != $dateCreated){
             $start = $dateCreated;
         }
@@ -330,12 +347,20 @@ class GoogleController extends BaseController{
         return response()->json($arr);
     }
 
-    public function fetchMetrics(Request $request, $profileId){
+    public function fetchMetrics(Request $request, $userId, $profileId){
         $metrics = [];
-        $metrics['acquisition']= GoogleAnalytics::find($profileId)->acquisitionMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
-        $metrics['audience']= GoogleAnalytics::find($profileId)->audienceMetrics->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}");
+
+        $metrics['acquisition']= GoogleAnalytics::find($profileId)->acquisitionMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->get();
+
+        $metrics['audience']= GoogleAnalytics::find($profileId)->audienceMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->where(function ($query) use ($userId) {
+                $query->where("uploader_id", "{$userId}")
+                    ->orWhereNull("uploader_id");
+            })->get();
+
         $metrics['behavior']= GoogleAnalytics::find($profileId)->behaviorMetrics()->select('page_path', \DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->groupBy('page_path')->orderByRaw('SUM(pageviews) DESC')->limit(10)->get();
+
         $metrics['pageviews_total'] = GoogleAnalytics::find($profileId)->behaviorMetrics()->select(\DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->get()[0];
+        
         return response()->json($metrics);
     }
 

@@ -34,29 +34,29 @@ Route::get('/{userId}/info', 'API\RegisterController@getUser')->name('getUser');
 
 Route::get('/fb/{userId}/pages', 'FacebookController@getPagesOfUser')->name('fb.getPages');
 // ?pageToken={$token}
-Route::post('/fb/add-page', 'FacebookController@addPage')->name('fb.addPage');
+Route::post('/fb/{userId}/add-page', 'FacebookController@addPage')->name('fb.addPage');
 Route::get('/fb/{pageId}/dashboard-metrics', 'FacebookController@getDashboardMetrics')->name('fb.getDashboardMetrics');
 Route::get('/fb/{pageId}/dashboard-metrics-fans', 'FacebookController@getDashboardMetricsFans');
-Route::get('/fb/{pageId}/fetch-metrics', 'FacebookController@fetchMetrics')->name('fb.fetchMetrics');
+Route::get('/fb/{userId}/{pageId}/fetch-metrics', 'FacebookController@fetchMetrics')->name('fb.fetchMetrics');
 Route::get('/fb/{pageId}/posts-details', 'FacebookController@getPagePostsDetails')->name('fb.getPagePostsDetails');
-Route::get('/fb/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
-Route::post("/fb/{pageId}/upload", 'FacebookController@uploadCSV');
+Route::get('/fb/{userId}/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
+Route::post("/fb/{userId}/{pageId}/upload", 'FacebookController@uploadCSV');
 
 Route::get("/twitter/{userId}/accounts", 'TwitterController@getAccountsOfUser')->name('
 	getAccountsOfUser');
-Route::post("/twitter/add-account", 'TwitterController@addAccount')->name('addAccount');
-Route::post("/twitter/{twitterId}/upload", 'TwitterController@uploadCSV')->name('upload');
+Route::post("/twitter/{userId}/add-account", 'TwitterController@addAccount')->name('addAccount');
+Route::post("/twitter/{userId}/{twitterId}/upload", 'TwitterController@uploadCSV')->name('upload');
 Route::get("/twitter/{userId}/update-account", 'TwitterController@updateAccount')->name('updateAccount');
-Route::get("/twitter/{twitterId}/tweet-metrics", 'TwitterController@getTweetMetrics')->name('getTweetMetrics');
+Route::get("/twitter/{userId}/{twitterId}/tweet-metrics", 'TwitterController@getTweetMetrics')->name('getTweetMetrics');
 
 Route::post("/google/add-account", 'GoogleController@addAccount');
 Route::get("/google/get-accounts", 'GoogleController@getAccounts');
 Route::get("/google/{userId}/accounts", 'GoogleController@getAccountsOfUser');
-Route::get("/google/{profileId}/get-audience-metrics", 'GoogleController@getAudienceMetrics');
+Route::get("/google/{userId}/{profileId}/get-audience-metrics", 'GoogleController@getAudienceMetrics');
 Route::get("/google/{profileId}/get-acquisition-metrics", 'GoogleController@getAcquisitionMetrics');
 Route::get("/google/{profileId}/get-behavior-metrics", 'GoogleController@getBehaviorMetrics');
-Route::get("/google/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
-Route::post("/google/{profileId}/upload/{metric}", 'GoogleController@uploadCSV');
+Route::get("/google/{userId}/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
+Route::post("/google/{userId}/{profileId}/upload/{metric}", 'GoogleController@uploadCSV');
 
 Route::get("/insights/fb/{pageId}/most-engaged-post", 'InsightController@getMostEngagedPost');
 Route::get("/insights/fb/{pageId}/top-like-source", 'InsightController@getTopLikeSource');

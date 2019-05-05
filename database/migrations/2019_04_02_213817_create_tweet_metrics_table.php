@@ -14,7 +14,8 @@ class CreateTweetMetricsTable extends Migration
     public function up()
     {
         Schema::create('tweet_metrics', function (Blueprint $table) {
-            $table->string('id')->primary();
+            $table->bigIncrements('id');
+            $table->string('tweet_id');
             $table->string('link');
             $table->text('text');
             $table->dateTime('created_date');
