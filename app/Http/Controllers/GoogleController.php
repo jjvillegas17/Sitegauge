@@ -479,9 +479,10 @@ class GoogleController extends BaseController{
         return response()->json($accts);
     }
 
-    public function addAccount(Request $request){
+    public function addAccount(Request $request, $userId){
         try{
-            $googleAnalytics = new GoogleAnalytics();
+            $account = GoogleAnalytics::find($request->profileId);
+            $googleAnalytics = empty($account) ? new GoogleAnalytics : $account;
             $googleAnalytics->date_created = $request->dateCreated;
             $googleAnalytics->token = $request->token;
             $googleAnalytics->refresh_token = $request->refreshToken;
@@ -492,8 +493,12 @@ class GoogleController extends BaseController{
             $googleAnalytics->profile_id = $request->profileId;
             $googleAnalytics->created = $request->created;
             $googleAnalytics->expires_in = $request->expiresIn;
-            $googleAnalytics->users()->attach($request->userId);
             $googleAnalytics->save();
+            $accs = User::find($userId)->googleAnalyticsAccounts()->where('user_id', $userId)->get();
+            if(count($accs) == 0){
+                // return response()->json("mt");
+                User::find($userId)->googleAnalyticsAccounts()->attach($request->profileId);
+            }
             return $this->sendResponse($googleAnalytics, 'Account succesfully added'); 
         }catch (\Illuminate\Database\QueryException $ex){
             return response()->json($ex->getMessage());

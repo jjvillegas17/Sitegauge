@@ -49,7 +49,7 @@ Route::post("/twitter/{userId}/{twitterId}/upload", 'TwitterController@uploadCSV
 Route::get("/twitter/{userId}/update-account", 'TwitterController@updateAccount')->name('updateAccount');
 Route::get("/twitter/{userId}/{twitterId}/tweet-metrics", 'TwitterController@getTweetMetrics')->name('getTweetMetrics');
 
-Route::post("/google/add-account", 'GoogleController@addAccount');
+Route::post("/google/{userId}/add-account", 'GoogleController@addAccount');
 Route::get("/google/get-accounts", 'GoogleController@getAccounts');
 Route::get("/google/{userId}/accounts", 'GoogleController@getAccountsOfUser');
 Route::get("/google/{userId}/{profileId}/get-audience-metrics", 'GoogleController@getAudienceMetrics');
