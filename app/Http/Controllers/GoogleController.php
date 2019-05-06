@@ -508,4 +508,11 @@ class GoogleController extends BaseController{
         } 
     }
 
+    public function deleteAccount($userId, $profileId){
+        User::find($userId)->googleAnalyticsAccounts()->detach($profileId);
+        $metric = GoogleAnalytics::find($profileId)->audienceMetrics()->where('uploader_id', $userId)->delete();
+        
+        return response()->json([]);
+    }
+
 }

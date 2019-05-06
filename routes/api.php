@@ -41,6 +41,7 @@ Route::get('/fb/{userId}/{pageId}/fetch-metrics', 'FacebookController@fetchMetri
 Route::get('/fb/{pageId}/posts-details', 'FacebookController@getPagePostsDetails')->name('fb.getPagePostsDetails');
 Route::get('/fb/{userId}/{pageId}/min-date', 'FacebookController@getMinDate')->name('fb.getMinDate');
 Route::post("/fb/{userId}/{pageId}/upload", 'FacebookController@uploadCSV');
+Route::post("/fb/{userId}/{pageId}/delete", 'FacebookController@deletePage');
 
 Route::get("/twitter/{userId}/accounts", 'TwitterController@getAccountsOfUser')->name('
 	getAccountsOfUser');
@@ -48,6 +49,7 @@ Route::post("/twitter/{userId}/add-account", 'TwitterController@addAccount')->na
 Route::post("/twitter/{userId}/{twitterId}/upload", 'TwitterController@uploadCSV')->name('upload');
 Route::get("/twitter/{userId}/update-account", 'TwitterController@updateAccount')->name('updateAccount');
 Route::get("/twitter/{userId}/{twitterId}/tweet-metrics", 'TwitterController@getTweetMetrics')->name('getTweetMetrics');
+Route::post("/twitter/{userId}/{twitterId}/delete", 'TwitterController@deleteAccount');
 
 Route::post("/google/{userId}/add-account", 'GoogleController@addAccount');
 Route::get("/google/get-accounts", 'GoogleController@getAccounts');
@@ -57,6 +59,7 @@ Route::get("/google/{profileId}/get-acquisition-metrics", 'GoogleController@getA
 Route::get("/google/{profileId}/get-behavior-metrics", 'GoogleController@getBehaviorMetrics');
 Route::get("/google/{userId}/{profileId}/fetch-metrics", 'GoogleController@fetchMetrics');
 Route::post("/google/{userId}/{profileId}/upload/{metric}", 'GoogleController@uploadCSV');
+Route::post("/google/{userId}/{profileId}/delete", 'GoogleController@deleteAccount');
 
 Route::get("/insights/fb/{pageId}/most-engaged-post", 'InsightController@getMostEngagedPost');
 Route::get("/insights/fb/{pageId}/top-like-source", 'InsightController@getTopLikeSource');

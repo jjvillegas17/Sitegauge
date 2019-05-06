@@ -441,8 +441,10 @@ class FacebookController extends BaseController
         return $this->sendResponse($min, 'Minimum date succesfully fetched');
     }
 
-    public function deletePage(Request $request, $userId){
-        // $request->pageId
+    public function deletePage($userId, $pageId){
+        User::find($userId)->facebookPages()->detach($pageId);
+        $metric = FacebookPage::find($pageId)->pageMetrics()->where('uploader_id', $userId)->delete();
+        return response()->json([]);
     }
     
 }

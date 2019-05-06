@@ -165,4 +165,10 @@ class TwitterController extends BaseController
     	$accts = User::find($userId)->twitterAccounts;
     	return response()->json($accts);
     }
+
+    public function deleteAccount($userId, $twitterId){
+        User::find($userId)->twitterAccounts()->detach($twitterId);
+        $tweet = TwitterAccount::find($twitterId)->tweetMetrics()->where('uploader_id', $userId)->delete();
+        return response()->json([]);
+    }
 }

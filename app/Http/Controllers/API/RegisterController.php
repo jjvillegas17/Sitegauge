@@ -38,7 +38,9 @@ class RegisterController extends BaseController
         $user->last_name = $input['lastName'];
         $user->email = $input['email'];
         $user->password = $input['password'];
-        
+        if(!empty($input['isAdmin'])){
+            $user->is_admin = $input['isAdmin'];
+        }
         $user->save();
 
         $success['token'] =  $user->createToken('MyApp')->accessToken;
@@ -51,6 +53,7 @@ class RegisterController extends BaseController
             $user = Auth::user();
             $success['user_id'] = $user->id; 
             $success['token'] =  $user->createToken('MyApp')-> accessToken;
+            $success['is_admin'] = $user->is_admin;
             return $this->sendResponse($success, 'User login successful');
         } 
         else{ 
@@ -69,11 +72,6 @@ class RegisterController extends BaseController
             return $this->sendError(['error' => 'api_something_went_wrong'],'Logout fail');
         }
     }
-    
-    public function details(){
-        $user = Auth::user(); 
-        return $this->sendResponse($user, 'Fetching of user successful');
-    } 
 
     public function getAllAccounts($userId){
         $pages = User::find($userId)->facebookPages()->get()->toArray();
