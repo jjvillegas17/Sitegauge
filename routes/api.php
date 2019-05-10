@@ -31,6 +31,9 @@ Route::group(['middleware' => 'auth:api'], function(){
 
 Route::get('/{userId}/accounts', 'API\RegisterController@getAllAccounts')->name('getAllAccounts');
 Route::get('/{userId}/info', 'API\RegisterController@getUser')->name('getUser');
+Route::get('/users', 'API\RegisterController@getAllUsers');
+Route::get('/blocked-users', 'API\RegisterController@getBlockedUsers');
+Route::get('/unblocked-users', 'API\RegisterController@getUnBlockedUsers');
 
 Route::get('/fb/{userId}/pages', 'FacebookController@getPagesOfUser')->name('fb.getPages');
 // ?pageToken={$token}
@@ -65,6 +68,10 @@ Route::get("/insights/fb/{pageId}/most-engaged-post", 'InsightController@getMost
 Route::get("/insights/fb/{pageId}/top-like-source", 'InsightController@getTopLikeSource');
 Route::get("/insights/fb/{pageId}/like-peak-dates", 'InsightController@getLikePeakDates');
 Route::get("/insights/fb/{pageId}/best-time-to-post", 'InsightController@getBestTimeToPost');
+
+Route::post("/admin/delete", 'API\RegisterController@deleteUsers');
+Route::post("/admin/block", 'API\RegisterController@blockUsers');
+Route::post("/admin/unblock", 'API\RegisterController@unblockUsers');
 
 // Route::get('login/{provider}', 'Auth\LoginController@redirectToProvider');
 // Route::get('login/facebook/callback', 'Auth\LoginController@handleProviderCallbackFacebook');

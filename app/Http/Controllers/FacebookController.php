@@ -154,25 +154,40 @@ class FacebookController extends BaseController
 
     public function getDashboardMetricsFans(Request $request, $pageId, Facebook $fb){
         $this->getPagePostsDetails($request, $pageId, $fb);
-        $lastDate = FansCountryMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
+        $minDate = FansCountryMetric::where('facebook_page_id', '=', $pageId)->min('date_retrieved');
+        $maxDate = FansCountryMetric::where('facebook_page_id', '=', $pageId)->max('date_retrieved');
+        
+        $last2Yrs1 = date("Y-m-d", strtotime("-2 years", time() + 3600*8));
+        $last2Yrs2 = date("Y-m-d", strtotime("+1 day", strtotime($last2Yrs1)));  // last 2 yrs + 1 day
+        $yesterday = date("Y-m-d", strtotime("-1 day", time() + 3600*8));
 
-         if($lastDate == date("Y-m-d", strtotime("-3 days",time()))){
-            return response()->json([]);
+        // return response()->json([$minDate, $last2Yrs2, $maxDate, $yesterday]);
+
+        $until = "";
+        $toRepeat = true;
+        if($minDate != $last2Yrs2){
+            $since = $last2Yrs1;
         }
-
-        $time = strtotime("-2 years", time());
-        $since = date("Y-m-d", $time);
-        $days = 728;
-        // if there is existing analytics in the table
-        if(!is_null($lastDate)){
-            // add 2 days from the last date retrieved from the db
-            if($since == DateHelper::addDays($lastDate, 2)){
-                $since = DateHelper::addDays($lastDate, 2); 
+        else{
+            if($minDate == $last2Yrs2 && $maxDate >= $yesterday){
+                return response()->json([]); // up to date
             }
             else{
-                $since = $lastDate;
+                $since = $maxDate;
+                
+                $datetime1 = new \DateTime($since);
+                $datetime2 = new \DateTime(date("Y-m-d", time() + 3600*8));
+                $days = $datetime1->diff($datetime2)->format("%a");
+                
+                if($days <= 30){
+                    $until = date("Y-m-d", time() + 3600*8);
+                    $toRepeat = false;
+                }
             }
         }
+
+        // return response()->json([$minDate, $last2Yrs2, $maxDate, $yesterday]);
+        $days = 728;
 
         // list the metrics to be fetched
         $batch = [
@@ -243,16 +258,35 @@ class FacebookController extends BaseController
         FansMaleAgeMetric::insert($fmaleAge);
         LikeSourceMetric::insert($l);
         ContentActivityByTypeMetric::insert($c);
-        foreach (array_chunk($fonline, 1000) as $key => $arr) {
-            FansOnlineMetric::insert($arr);
+
+        $countries = [];
+        foreach ($fcountry as $key => $row) {
+            $a = FansCountryMetric::where('date_retrieved', $row['date_retrieved']);
+            return response()->json($a);
+
+            if(!empty($a)){
+                FansCountryMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+            }
+            else{
+                array_push($countries, $row);
+            }
         }
 
+        FansCountryMetric::insert($countries);
+
         $resp = ['fans_country_metrics' => $fcountry, 'fans_city_metrics' => $fcity, 'fans_female_age_metrics' => $ffemaleAge, 'fans_male_age_metrics' => $fmaleAge, 'fans_online_metrics' => $fonline, 'content_activity_by_type_metrics' =>$c, 'like_source_metrics' => $l];
+
+        if($toRepeat == true){
+            $resp = $this->getDashboardMetrics($request, $pageId, $fb);
+        }
          
-        if(!is_null($lastDate))
+        if(!is_null($lastDate)){
             return $this->sendResponse($resp, 'Metrics succesfully updated');
+        }
+        
         return $this->sendResponse($resp, 'Metrics succesfully saved');
     }
+            
 
     public function getDashboardMetrics(Request $request, $pageId, Facebook $fb){
         // check if there is existing analytics in the page_metrics table

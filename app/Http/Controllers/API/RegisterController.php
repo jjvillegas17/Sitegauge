@@ -7,6 +7,9 @@ use App\Http\Controllers\API\BaseController as BaseController;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Validator;
+use App\FacebookPage;
+use App\GoogleAnalytics;
+use App\TwitterAccount;
 
 class RegisterController extends BaseController
 {
@@ -54,6 +57,7 @@ class RegisterController extends BaseController
             $success['user_id'] = $user->id; 
             $success['token'] =  $user->createToken('MyApp')-> accessToken;
             $success['is_admin'] = $user->is_admin;
+            $success['is_blocked'] = $user->is_blocked;
             return $this->sendResponse($success, 'User login successful');
         } 
         else{ 
@@ -81,7 +85,56 @@ class RegisterController extends BaseController
         return response()->json($accounts);
     }
 
+    public function getAllUsers(){
+        return response()->json(User::all());
+    }
+
+    public function getUnBlockedusers(){
+        return response()->json(User::where('is_blocked', 0)->get());
+    }
+
+    public function getBlockedUsers(){
+        return response()->json(User::where('is_blocked', 1)->get());
+    }
+
     public function getUser($userId){
         return response()->json(User::find($userId));
+    }
+
+    public function deleteUsers(Request $request){
+        try{
+            foreach ($request->users as $key => $user) {
+                User::find($user)->twitterAccounts()->detach();
+                User::find($user)->googleAnalyticsAccounts()->detach();
+                User::find($user)->facebookPages()->detach();
+                User::find($user)->delete();            
+            }            
+        } catch(\Exception $e){
+            return response()->json([$e->getMessage()]);
+        }
+
+
+        return response()->json([]);
+    }
+
+    public function blockUsers(Request $request){
+            foreach ($request->users as $key => $user) {
+                $a = User::find($user);
+                $a->is_blocked = 1;
+                $a->save();
+            }
+
+            return response()->json([]);
+    }
+
+    public function unblockUsers(Request $request){
+            foreach ($request->users as $key => $user) {
+                $a = User::find($user);
+                $a->is_blocked = 0;
+                $a->save();
+            }
+
+
+            return response()->json([]);
     }
 }
