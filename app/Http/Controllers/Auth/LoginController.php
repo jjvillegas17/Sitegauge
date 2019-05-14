@@ -66,8 +66,8 @@ class LoginController extends BaseController
 
         $consumerKey = "zMdlnOUxnSOsqyU2O8FCFqK8z";
         $consumerSecret = "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE";
-        $oauthToken = "1051570758-rgijW7EyFycBc36cBSdLFM5025jo8j3d0NIKEQn";
-        $oauthTokenSecret = "4gtIZ9ntLvW6uSJwBHcPfW6jHql55wg2nEY3XbsH4s8p0";
+        $oauthToken = "1051570758-8nsagsCOk74IJGns0GQ0VVn6REeL2ulMS13e2vu";
+        $oauthTokenSecret = "57Swp9BCHGuu1XKBrXCpjIet0sci6mN5ek397i3ziCWo7";
 
         $connection = new TwitterOAuth($consumerKey,$consumerSecret,$oauthToken,$oauthTokenSecret);
         $connection->setTimeouts(60, 120);

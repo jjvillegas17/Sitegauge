@@ -12,8 +12,8 @@ use App\User;
 class TwitterController extends BaseController
 {
 	private $settings = [
-        'oauth_access_token' => "1051570758-PkX7uIurnr8Jibr3Q2ycvXyRjcVp7i72URnF0wc",               
-		'oauth_access_token_secret' => "6riQfa9rHko8yG21PlYsiMHU0ebH4cJFir5hkWcuN1RII",    
+        'oauth_access_token' => "1051570758-8nsagsCOk74IJGns0GQ0VVn6REeL2ulMS13e2vu",               
+		'oauth_access_token_secret' => "57Swp9BCHGuu1XKBrXCpjIet0sci6mN5ek397i3ziCWo7",    
 		'consumer_key' => "zMdlnOUxnSOsqyU2O8FCFqK8z",                 
 		'consumer_secret' => "Nb4yO8lGxgx4qvsF0vZuMdadGovUf7lR9iZVB667ErTvZ345kE" 
     ];
@@ -56,8 +56,7 @@ class TwitterController extends BaseController
     }
 
 	public function updateAccount($userId, Request $request){
-			$this->settings['oauth_access_token'] = $request->token;
-			$this->settings['oauth_access_token_secret'] = $request->tokenSecret;
+
 			$ta_url = 'https://api.twitter.com/1.1/statuses/user_timeline.json';
 			$getfield = "?screen_name={$request->username}
 		&include_rts=false&exclude_replies=false"; 
@@ -68,7 +67,7 @@ class TwitterController extends BaseController
 			->performRequest();
 
 			$data = json_decode($follow_count, true);
-
+            
 			$twitter_account = [];
 	        $twitter_account['id'] = $data[0]['user']['id_str'];
 	        $twitter_account['username'] = $data[0]['user']['screen_name'];
@@ -76,7 +75,6 @@ class TwitterController extends BaseController
 	        $twitter_account['followers'] = $data[0]['user']['followers_count'];
 	        $twitter_account['following'] = $data[0]['user']['friends_count'];
 	        $twitter_account['tweets'] = $data[0]['user']['statuses_count'];
-	        $twitter_account['user_id'] = $userId;    /* change this one to actual user id Auth::user()->id */
 	        $user = TwitterAccount::updateOrCreate(['id' => $data[0]['user']['id_str']], $twitter_account); 
 	        return response()->json($user);
 		

@@ -262,13 +262,25 @@ class GoogleController extends BaseController{
         $arr = GoogleParser::parseAudience($this->analytics->reports->batchGet($body), $profileId);
         
         $toInsert = [];
+
         foreach ($arr as $key => $row){
-            $m = AudienceMetric::where(['date_retrieved' => $row['date_retrieved']])->first();
+            $m = GoogleAnalytics::find($profileId)->audienceMetrics()->where(['date_retrieved' => $row['date_retrieved']])->first();
             if(empty($m)){
                 array_push($toInsert, $row);
             }
             else{ // update only the accurate fields if there's existing page metric
-                AudienceMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+                $m->sessions = $row['sessions'];
+                $m->users = $row['users'];
+                $m->new_users = $row['new_users'];
+                $m->sessions_per_user = $row['sessions_per_user'];
+                $m->pageviews = $row['pageviews'];
+                $m->pages_per_session = $row['pages_per_session'];
+                $m->avg_session_duration = $row['avg_session_duration'];
+                $m->bounce_rate = $row['bounce_rate'];
+                $m->date_retrieved = $row['date_retrieved'];
+                $m->uploader_id = $row['uploader_id'];
+                $m->profile_id = $row['profile_id'];
+                $m->save();
             }
         }
 
@@ -333,12 +345,19 @@ class GoogleController extends BaseController{
 
         $toInsert = [];
         foreach ($arr as $key => $row){
-            $m = AcquisitionMetric::where(['date_retrieved' => $row['date_retrieved']])->first();
+            $m = GoogleAnalytics::find($profileId)->acquisitionMetrics()->where(['date_retrieved' => $row['date_retrieved']])->first();
             if(empty($m)){
                 array_push($toInsert, $row);
             }
             else{ // update only the accurate fields if there's existing page metric
-                AcquisitionMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved']], $row);
+                $m->date_retrieved = $row["date_retrieved"];
+                $m->direct = $row["direct"];
+                $m->organic_search = $row["organic_search"];
+                $m->social = $row["social"];
+                $m->other = $row["other"];
+                $m->referral = $row["referral"];
+                $m->profile_id = $row["profile_id"];
+                $m->save();
             }
         }
 
@@ -350,16 +369,16 @@ class GoogleController extends BaseController{
     public function fetchMetrics(Request $request, $userId, $profileId){
         $metrics = [];
 
-        $metrics['acquisition']= GoogleAnalytics::find($profileId)->acquisitionMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->get();
+        $metrics['acquisition']= GoogleAnalytics::find($profileId)->acquisitionMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->orderBy("date_retrieved", "asc")->get();
 
         $metrics['audience']= GoogleAnalytics::find($profileId)->audienceMetrics()->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->where(function ($query) use ($userId) {
                 $query->where("uploader_id", "{$userId}")
                     ->orWhereNull("uploader_id");
-            })->get();
+            })->orderBy("date_retrieved", "asc")->get();
 
         $metrics['behavior']= GoogleAnalytics::find($profileId)->behaviorMetrics()->select('page_path', \DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->groupBy('page_path')->orderByRaw('SUM(pageviews) DESC')->limit(10)->get();
 
-        $metrics['pageviews_total'] = GoogleAnalytics::find($profileId)->behaviorMetrics()->select(\DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->get()[0];
+        $metrics['pageviews_total'] = GoogleAnalytics::find($profileId)->behaviorMetrics()->select(\DB::raw('sum(pageviews) as pageviews'))->where("date_retrieved", ">=", "{$request->start}")->where("date_retrieved", "<=", "{$request->end}")->orderBy("date_retrieved", "asc")->get()[0];
         
         return response()->json($metrics);
     }
@@ -420,12 +439,16 @@ class GoogleController extends BaseController{
         
         $toInsert = [];
         foreach ($behaviors as $key => $row){
-            $m = BehaviorMetric::where(['date_retrieved' => $row['date_retrieved'], 'page_path' => $row['page_path']])->first();
+            $m = GoogleAnalytics::find($profileId)->behaviorMetrics()->where(['date_retrieved' => $row['date_retrieved'], 'page_path' => $row['page_path']])->first();
             if(empty($m)){
                 array_push($toInsert, $row);
             }
             else{ // update only the accurate fields if there's existing page metric
-                BehaviorMetric::updateOrCreate(['date_retrieved' => $row['date_retrieved'], 'page_path' => $row['page_path']], $row);
+                $m->pageviews = $row["pageviews"];
+                $m->page_path = $row["page_path"];
+                $m->date_retrieved = $row["date_retrieved"];
+                $m->profile_id = $row["profile_id"];
+                $m->save();
             }
         }
         BehaviorMetric::insert($toInsert);

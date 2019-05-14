@@ -64,7 +64,7 @@ class FacebookParser
         $m['search'] = 0;
         $m['your_page'] = 0;
         $m['other'] = 0;
-        $sources = $metrics[5][0]['values'][$i]['value'];
+        $sources = $metrics[2][0]['values'][$i]['value'];
         foreach ($sources as $key => $value) {
             $key = strtolower($key);
             if($key == 'news feed'){
@@ -83,7 +83,7 @@ class FacebookParser
                 $m[$key] = $value;
             }
         }
-        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[5][0]['values'][$i]['end_time']['date']));
+        $m['date_retrieved'] = date('Y-m-d', strtotime($metrics[2][0]['values'][$i]['end_time']['date']));
         $m['facebook_page_id'] = $pageId;
         return $m;
     }

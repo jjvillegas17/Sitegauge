@@ -86,15 +86,15 @@ class RegisterController extends BaseController
     }
 
     public function getAllUsers(){
-        return response()->json(User::all());
+        return response()->json(User::where('is_admin', 0)->get());
     }
 
     public function getUnBlockedusers(){
-        return response()->json(User::where('is_blocked', 0)->get());
+        return response()->json(User::where('is_blocked', 0)->where('is_admin', 0)->get());
     }
 
     public function getBlockedUsers(){
-        return response()->json(User::where('is_blocked', 1)->get());
+        return response()->json(User::where('is_blocked', 1)->where('is_admin', 0)->get());
     }
 
     public function getUser($userId){

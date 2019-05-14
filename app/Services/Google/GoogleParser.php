@@ -23,15 +23,15 @@ class GoogleParser{
 
 		      for ($j = 0; $j < count($metrics); $j++) {
 		        $values = $metrics[$j]->getValues();
+		        // return response()->json($values);
 		        for ($k = 0; $k < count($values); $k++) {
 		          $entry = $metricHeaders[$k];
 		          // echo "<pre>" . print_r($entry->getName() . ": " . $values[$k]) . "</pre>";
 		          if($entry->getName() == 'avg_session_duration'){
-		          	$time = strtotime((float)$values[$k]);
-		          	$time = date("H:i:s", $time);
-                    $time = explode(':', $time);
-                    $mins = ((int) $time[1]*60 + (int) $time[2])/60;
+		          	$time = (float)$values[$k];
+                    $mins = $time/60;
                     $mins = round($mins, 2);
+
 		          	$audience[$entry->getName()] = $mins;
 		          	continue;
 		          }
